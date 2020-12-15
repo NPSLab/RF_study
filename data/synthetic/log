@@ -1,0 +1,936 @@
+
+
+
+
+TTT7: test tree depth 7
+
+TTT7: test subtree depth 3
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+76488
+idx_to_subtree
+7200
+leaf_idx_boundry
+7300
+g_subtree_nodes_offset
+7300
+g_subtree_idx_to_subtree_offset
+7300
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 83 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 78352
+accuracy rate: 0.865146
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 78 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 78352
+accuracy rate: 0.865146
+
+TTT7: test subtree depth 4
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+76494
+idx_to_subtree
+1600
+leaf_idx_boundry
+1700
+g_subtree_nodes_offset
+1700
+g_subtree_idx_to_subtree_offset
+1700
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 81 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 78352
+accuracy rate: 0.865146
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 77 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 78352
+accuracy rate: 0.865146
+
+TTT7: test subtree depth 5
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+76488
+idx_to_subtree
+3200
+leaf_idx_boundry
+3300
+g_subtree_nodes_offset
+3300
+g_subtree_idx_to_subtree_offset
+3300
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 83 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 78352
+accuracy rate: 0.865146
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 77 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 78352
+accuracy rate: 0.865146
+
+
+
+
+TTT8: test tree depth 8
+
+TTT8: test subtree depth 3
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+153048
+idx_to_subtree
+7200
+leaf_idx_boundry
+7300
+g_subtree_nodes_offset
+7300
+g_subtree_idx_to_subtree_offset
+7300
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 105 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 69394
+accuracy rate: 0.880564
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 95 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 69394
+accuracy rate: 0.880564
+
+TTT8: test subtree depth 4
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+152988
+idx_to_subtree
+27172
+leaf_idx_boundry
+27196
+g_subtree_nodes_offset
+27196
+g_subtree_idx_to_subtree_offset
+27196
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 106 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 69394
+accuracy rate: 0.880564
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 95 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 69394
+accuracy rate: 0.880564
+
+TTT8: test subtree depth 5
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+153132
+idx_to_subtree
+3200
+leaf_idx_boundry
+3300
+g_subtree_nodes_offset
+3300
+g_subtree_idx_to_subtree_offset
+3300
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 105 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 69394
+accuracy rate: 0.880564
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 94 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 69394
+accuracy rate: 0.880564
+
+
+
+
+TTT9: test tree depth 9
+
+TTT9: test subtree depth 3
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+303924
+idx_to_subtree
+58018
+leaf_idx_boundry
+57566
+g_subtree_nodes_offset
+57566
+g_subtree_idx_to_subtree_offset
+57566
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 145 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 61297
+accuracy rate: 0.8945
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 117 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 61297
+accuracy rate: 0.8945
+
+TTT9: test subtree depth 4
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+303810
+idx_to_subtree
+27180
+leaf_idx_boundry
+27206
+g_subtree_nodes_offset
+27206
+g_subtree_idx_to_subtree_offset
+27206
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 146 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 61297
+accuracy rate: 0.8945
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 116 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 61297
+accuracy rate: 0.8945
+
+TTT9: test subtree depth 5
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+306198
+idx_to_subtree
+3200
+leaf_idx_boundry
+3300
+g_subtree_nodes_offset
+3300
+g_subtree_idx_to_subtree_offset
+3300
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 145 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 61297
+accuracy rate: 0.8945
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 117 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 61297
+accuracy rate: 0.8945
+
+
+
+
+TTT10: test tree depth 10
+
+TTT10: test subtree depth 3
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+591414
+idx_to_subtree
+58018
+leaf_idx_boundry
+57522
+g_subtree_nodes_offset
+57522
+g_subtree_idx_to_subtree_offset
+57522
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 227 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 51782
+accuracy rate: 0.910876
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 153 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 51782
+accuracy rate: 0.910876
+
+TTT10: test subtree depth 4
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+596088
+idx_to_subtree
+27178
+leaf_idx_boundry
+27206
+g_subtree_nodes_offset
+27206
+g_subtree_idx_to_subtree_offset
+27206
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 227 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 51782
+accuracy rate: 0.910876
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 152 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 51782
+accuracy rate: 0.910876
+
+TTT10: test subtree depth 5
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+593814
+idx_to_subtree
+104556
+leaf_idx_boundry
+99180
+g_subtree_nodes_offset
+99180
+g_subtree_idx_to_subtree_offset
+99180
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 226 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 51782
+accuracy rate: 0.910876
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 150 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 51782
+accuracy rate: 0.910876
+
+
+
+
+TTT11: test tree depth 11
+
+TTT11: test subtree depth 3
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+1131912
+idx_to_subtree
+58020
+leaf_idx_boundry
+57576
+g_subtree_nodes_offset
+57576
+g_subtree_idx_to_subtree_offset
+57576
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 397 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 45796
+accuracy rate: 0.921179
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 198 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 45796
+accuracy rate: 0.921179
+
+TTT11: test subtree depth 4
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+1160190
+idx_to_subtree
+27184
+leaf_idx_boundry
+27220
+g_subtree_nodes_offset
+27220
+g_subtree_idx_to_subtree_offset
+27220
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 393 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 45796
+accuracy rate: 0.921179
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 198 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 45796
+accuracy rate: 0.921179
+
+TTT11: test subtree depth 5
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+1116600
+idx_to_subtree
+104554
+leaf_idx_boundry
+99454
+g_subtree_nodes_offset
+99454
+g_subtree_idx_to_subtree_offset
+99454
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 400 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 45796
+accuracy rate: 0.921179
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 187 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 45796
+accuracy rate: 0.921179
+
+
+
+
+TTT12: test tree depth 12
+
+TTT12: test subtree depth 3
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+1999158
+idx_to_subtree
+385986
+leaf_idx_boundry
+347328
+g_subtree_nodes_offset
+347328
+g_subtree_idx_to_subtree_offset
+347328
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 629 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 39202
+accuracy rate: 0.932528
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 227 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 39202
+accuracy rate: 0.932528
+
+TTT12: test subtree depth 4
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+2028534
+idx_to_subtree
+378542
+leaf_idx_boundry
+317000
+g_subtree_nodes_offset
+317000
+g_subtree_idx_to_subtree_offset
+317000
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 622 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 39202
+accuracy rate: 0.932528
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 240 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 39202
+accuracy rate: 0.932528
+
+TTT12: test subtree depth 5
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+2031822
+idx_to_subtree
+104686
+leaf_idx_boundry
+99266
+g_subtree_nodes_offset
+99266
+g_subtree_idx_to_subtree_offset
+99266
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 645 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 39202
+accuracy rate: 0.932528
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 243 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 39202
+accuracy rate: 0.932528
+
+
+
+
+TTT13: test tree depth 13
+
+TTT13: test subtree depth 3
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+3311454
+idx_to_subtree
+385850
+leaf_idx_boundry
+346348
+g_subtree_nodes_offset
+346348
+g_subtree_idx_to_subtree_offset
+346348
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 901 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 34026
+accuracy rate: 0.941437
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 311 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 34026
+accuracy rate: 0.941437
+
+TTT13: test subtree depth 4
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+3340920
+idx_to_subtree
+378336
+leaf_idx_boundry
+316076
+g_subtree_nodes_offset
+316076
+g_subtree_idx_to_subtree_offset
+316076
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 914 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 34026
+accuracy rate: 0.941437
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 309 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 34026
+accuracy rate: 0.941437
+
+TTT13: test subtree depth 5
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+3653994
+idx_to_subtree
+104662
+leaf_idx_boundry
+99212
+g_subtree_nodes_offset
+99212
+g_subtree_idx_to_subtree_offset
+99212
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 892 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 34026
+accuracy rate: 0.941437
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 315 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 34026
+accuracy rate: 0.941437
+
+
+
+
+TTT14: test tree depth 14
+
+TTT14: test subtree depth 3
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+5270298
+idx_to_subtree
+383352
+leaf_idx_boundry
+343990
+g_subtree_nodes_offset
+343990
+g_subtree_idx_to_subtree_offset
+343990
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 1178 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 30872
+accuracy rate: 0.946865
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 403 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 30872
+accuracy rate: 0.946865
+
+TTT14: test subtree depth 4
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+5302098
+idx_to_subtree
+376976
+leaf_idx_boundry
+313692
+g_subtree_nodes_offset
+313692
+g_subtree_idx_to_subtree_offset
+313692
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 1182 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 30872
+accuracy rate: 0.946865
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 387 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 30872
+accuracy rate: 0.946865
+
+TTT14: test subtree depth 5
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+6481176
+idx_to_subtree
+104624
+leaf_idx_boundry
+99130
+g_subtree_nodes_offset
+99130
+g_subtree_idx_to_subtree_offset
+99130
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 1162 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 30872
+accuracy rate: 0.946865
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 392 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 30872
+accuracy rate: 0.946865
+
+
+
+
+TTT15: test tree depth 15
+
+TTT15: test subtree depth 3
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+7515978
+idx_to_subtree
+1398618
+leaf_idx_boundry
+1088858
+g_subtree_nodes_offset
+1088858
+g_subtree_idx_to_subtree_offset
+1088858
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 1458 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 27960
+accuracy rate: 0.951877
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 426 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 27960
+accuracy rate: 0.951877
+
+TTT15: test subtree depth 4
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+8485254
+idx_to_subtree
+375578
+leaf_idx_boundry
+313880
+g_subtree_nodes_offset
+313880
+g_subtree_idx_to_subtree_offset
+313880
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 1428 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 27960
+accuracy rate: 0.951877
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 475 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 27960
+accuracy rate: 0.951877
+
+TTT15: test subtree depth 5
+num_of_trees
+100
+prefix_sum_subtree_nums
+101
+nodes
+8731032
+idx_to_subtree
+1656896
+leaf_idx_boundry
+843378
+g_subtree_nodes_offset
+843378
+g_subtree_idx_to_subtree_offset
+843378
+X_test with 581012 rows and 54 cols.
+Allocating csr data on GPU
+Copying csr data to GPU
+Start executing csr format on GPU
+cudaSuccess
+RUNTIME of csr kernel: 1454 ms 
+Kernel returned:cudaSuccess
+csr result is wrong with this many: 27960
+accuracy rate: 0.951877
+Allocating hier format on GPU
+Copying hier format to GPU
+Start executing hier format on GPU
+cudaSuccess
+RUNTIME of hier kernel: 446 ms 
+Kernel returned:cudaSuccess
+hier result is wrong with this many: 27960
+accuracy rate: 0.951877
