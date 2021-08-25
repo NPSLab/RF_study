@@ -196,9 +196,14 @@ for _max_depth in range(7,16):
     # lists_concat = [node_list_idx, edge_list_idx, node_is_leaf_idx, node_features_idx, node_values_idx, node_list_total,edge_list_total,node_is_leaf_total, node_features_total, node_values_total]
     # save_objects(lists_concat, "td"+str(_max_depth))
 
-    # ### LOADING LISTS
+    ### SAVING ENTIRE CSR_FOREST_TREES
+    # save_objects(csr_forest_trees, "td_forest"+str(_max_depth))
+
+    ### LOADING LISTS
     # node_list_idx, edge_list_idx, node_is_leaf_idx, node_features_idx, node_values_idx, node_list_total,edge_list_total,node_is_leaf_total, node_features_total, node_values_total = load_objects("td"+str(_max_depth))
 
+    ### LOADING ENTIRE CSR_FOREST_TREES
+    # csr_forest_trees = load_objects("td_forest"+str(_max_depth))
     #Now generate hier trees of different depth
     
     
