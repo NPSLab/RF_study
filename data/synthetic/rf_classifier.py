@@ -8,6 +8,9 @@ from sklearn.ensemble import RandomForestClassifier
 # split data into train and test
 from sklearn.model_selection import train_test_split
 
+from utilities import save_objects
+from utilities import load_objects
+
 #configure the dataset
 _n_samples=581012*2
 _n_features=54
@@ -188,6 +191,14 @@ for _max_depth in range(7,16):
         write_array( node_features_total, "node_features_total" ,f)  
         write_array( node_values_total  , "node_values_total"   ,f) 
     
+
+    ### SAVING LISTS
+    # lists_concat = [node_list_idx, edge_list_idx, node_is_leaf_idx, node_features_idx, node_values_idx, node_list_total,edge_list_total,node_is_leaf_total, node_features_total, node_values_total]
+    # save_objects(lists_concat, "td"+str(_max_depth))
+
+    # ### LOADING LISTS
+    # node_list_idx, edge_list_idx, node_is_leaf_idx, node_features_idx, node_values_idx, node_list_total,edge_list_total,node_is_leaf_total, node_features_total, node_values_total = load_objects("td"+str(_max_depth))
+
     #Now generate hier trees of different depth
     
     
