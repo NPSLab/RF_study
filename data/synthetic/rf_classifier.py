@@ -10,6 +10,7 @@ from sklearn.model_selection import train_test_split
 
 from utilities import save_objects
 from utilities import load_objects
+from utilities import loadcsr_from_txt
 
 #configure the dataset
 _n_samples=581012*2
@@ -205,6 +206,11 @@ for _max_depth in range(7,16):
     ### LOADING ENTIRE CSR_FOREST_TREES
     # csr_forest_trees = load_objects("td_forest"+str(_max_depth))
     #Now generate hier trees of different depth
+
+    ### LOADING LISTS FROM TEXT FILE
+    # list_mapping = loadcsr_from_txt("td"+str(_max_depth)+"_csr.txt")
+    # for listname in list_mapping.keys():
+    #     locals()[listname] = list_mapping[listname]
     
     
     

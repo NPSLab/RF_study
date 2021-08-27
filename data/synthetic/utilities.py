@@ -27,3 +27,18 @@ def load_objects(filename):
 # print(c)
 # print(d)
 
+
+# Load csr lists from text file (PROVIDE EXTENSION)
+def loadcsr_from_txt(filename):
+    ret_map = {}
+    file = open(filename, "r")
+    i = 0
+    lines = file.readlines()
+    for i in range(0,len(lines),3):
+        values = lines[i+2].split(", ")
+        values = values[0:len(values)-1]
+
+        ret_map[lines[i][0:len(lines[i])-1]] = [float(j) for j in values]
+    return ret_map
+
+# print(loadcsr_from_txt("td7_csr.txt"))
