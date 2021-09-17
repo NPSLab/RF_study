@@ -125,8 +125,8 @@ for estimators in range(10, MAX_ESTIMATORS+1, 10):
     estimators_scores.append(average_score)
     save_objects([model], "MODEL"+DATASET_NAME+"_td"+str(FIXED_DEPTH)+"_ne"+str(estimators))
 
-# with open("depthscore_"+DATASET_NAME+".txt", "w") as f:
-#     write_array(depth_scores, "Average scores", f)
+with open("depthscore_"+DATASET_NAME+".txt", "w") as f:
+    write_array(depth_scores, "Average scores", f)
 
 with open("estimatorscore_"+DATASET_NAME+".txt", "w") as f:
     write_array(estimators_scores, "Average scores", f)
