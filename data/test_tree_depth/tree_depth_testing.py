@@ -15,7 +15,7 @@ from utilities import load_objects
 from utilities import loadcsr_from_txt
 
 import scipy
-from libsvm.svmutil import *
+# from libsvm.svmutil import *
 
 # define dataset
 # X_all, y_all = make_classification(n_samples=_n_samples, n_features=_n_features, n_informative=_n_informative, n_redundant=_n_redundant, random_state=_random_state)
