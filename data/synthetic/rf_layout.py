@@ -14,8 +14,8 @@ from utilities import load_objects
 from utilities import loadcsr_from_txt
 
 #configure the dataset
-MODEL_PATH = r'/home/mkshah5/higgs_trained/'
-DATASET_NAME = "HIGGS"
+MODEL_PATH = r'/home/mkshah5/random-forest-study/data/synthetic/SUSY_trained/'
+DATASET_NAME = "SUSY"
 def write_array(arr_name,str_name,f):
     f.write("{}\n".format(str_name))
     f.write("{0},\n".format(len(arr_name)))
