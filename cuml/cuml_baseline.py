@@ -28,7 +28,7 @@ for i in range(len(DATASET_NAME)):
 
     for j in range(len(DEPTHS)):
         results_file.write("td: " +str(DEPTHS[i])+" ne: "+str(NUM_ESTIMATORS[i])+ "\n")
-        model = load_objects("MODEL"+DATASET_NAME+"_td"+str(DEPTHS[j])+"_ne"+str(NUM_ESTIMATORS[j]))[0]
+        model = load_objects("MODEL"+DATASET_NAME[i]+"_td"+str(DEPTHS[j])+"_ne"+str(NUM_ESTIMATORS[j]))[0]
 
         X_gpu = cuda.to_device(np.ascontiguousarray(X_test.astype(np.float32)))
         
