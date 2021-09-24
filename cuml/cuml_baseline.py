@@ -15,7 +15,7 @@ from utilities import loadcsr_from_txt
 DIRNAME = os.path.dirname(__file__)
 
 # MODEL_PATH = "data\test_tree_depth\Covtype_trained"
-DATASET_NAME = ["covtype", "SUSY"]
+DATASET_NAME = ["SUSY"]
 DEPTHS = [25, 45, 45]
 NUM_ESTIMATORS = [50, 50, 100]
 
