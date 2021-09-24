@@ -38,6 +38,7 @@ for i in range(len(DATASET_NAME)):
         end_time = time.time()
         accuracy_score = sklearn.metrics.accuracy_score(y_test, np.asarray(fil_preds_gpu))
         np.savetxt(results_file, accuracy_score)
+        results_file.write("Time to complete: "+str(end_time)+"\n")
         results_file.write("\n")
     results_file.close()
         
