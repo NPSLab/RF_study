@@ -35,7 +35,7 @@ for i in range(len(DATASET_NAME)):
         fm = ForestInference.load_from_sklearn(model, output_class=True)
         start_time = time.time()
         fil_preds_gpu = fm.predict(X_gpu)
-        end_time = time.time()
+        end_time = time.time() - start_time
         accuracy_score = sklearn.metrics.accuracy_score(y_test, np.asarray(fil_preds_gpu))
         results_file.write("Average Accuracy: "+str(accuracy_score)+"\n")
         results_file.write("Time to complete: "+str(end_time)+"\n")
