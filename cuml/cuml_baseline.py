@@ -37,6 +37,7 @@ for i in range(len(DATASET_NAME)):
         fil_preds_gpu = fm.predict(X_gpu)
         end_time = time.time()
         accuracy_score = sklearn.metrics.accuracy_score(y_test, np.asarray(fil_preds_gpu))
+        print(accuracy_score)
         np.savetxt(results_file, accuracy_score)
         results_file.write("Time to complete: "+str(end_time)+"\n")
         results_file.write("\n")
