@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import pickle
+import sklearn
 
 '''
 Contains any utility functions needed for the rf_classifier.py script
