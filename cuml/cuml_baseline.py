@@ -1,4 +1,4 @@
-from data.synthetic.rf_layout import MAX_ESTIMATORS
+# from data.synthetic.rf_layout import MAX_ESTIMATORS
 from pickle import load
 import sklearn, sklearn.datasets, numpy as np
 from numba import cuda
