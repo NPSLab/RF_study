@@ -1,5 +1,5 @@
 # from data.synthetic.rf_layout import MAX_ESTIMATORS
-from data.test_tree_depth.tree_depth_testing import DATASET_PATH
+# from data.test_tree_depth.tree_depth_testing import DATASET_PATH
 from pickle import load
 import sklearn, sklearn.datasets, numpy as np
 from numba import cuda
