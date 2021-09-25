@@ -25,7 +25,7 @@ DEPTHS = [25, 45, 45]
 NUM_ESTIMATORS = [50, 50, 100]
 
 y_all, x_all = svm_read_problem(DATASET_PATH, return_scipy = True)
-x_all = np.asarray(x_all)
+x_all = x_all.toarray()
 # y_all = y_all.to_numpy().ravel()
 
 X, X_test, y, y_test = train_test_split(x_all, y_all, test_size=0.2)
