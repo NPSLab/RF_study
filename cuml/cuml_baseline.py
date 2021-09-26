@@ -43,6 +43,9 @@ for i in range(len(DATASET_NAME)):
         # model = load_objects("MODEL"+DATASET_NAME[i]+"_td"+str(DEPTHS[j])+"_ne"+str(NUM_ESTIMATORS[j]))[0]
         model = RandomForestClassifier(n_estimators= NUM_ESTIMATORS[j], max_depth = DEPTHS[j])
         model.fit(X, y)
+        preds = model.predict(X_test)
+        score = sklearn.metrics.accuracy_score(y_test, preds)
+        results_file.write("Expected Score: "+str(score) +"\n")
         X_gpu = cuda.to_device(np.ascontiguousarray(X_test.astype(np.float32)))
         
         fm = ForestInference.load_from_sklearn(model, output_class=True)
