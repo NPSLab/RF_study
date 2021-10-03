@@ -16,8 +16,8 @@ from utilities import loadcsr_from_txt
 from sklearn.cluster import KMeans
 
 #configure the dataset
-MODEL_PATH = r'/home/mkshah5//'
-DATASET_NAME = "HIGGS"
+MODEL_PATH = r'/home/mkshah5/susy_trained//'
+DATASET_NAME = "SUSY"
 def write_array(arr_name,str_name,f):
     f.write("{}\n".format(str_name))
     f.write("{0},\n".format(len(arr_name)))
