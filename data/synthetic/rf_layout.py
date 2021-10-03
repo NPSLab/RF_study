@@ -1,6 +1,7 @@
 # from data.test_tree_depth.tree_depth_testing import DATASET_NAME, MAX_DEPTH, MAX_ESTIMATORS
 import numpy as np
 import os
+import math
 
 # test classification dataset
 from sklearn.datasets import make_classification
@@ -12,10 +13,11 @@ from sklearn.model_selection import train_test_split
 from utilities import save_objects
 from utilities import load_objects
 from utilities import loadcsr_from_txt
+from sklearn.cluster import KMeans
 
 #configure the dataset
-MODEL_PATH = r'/home/mkshah5/random-forest-study/data/synthetic/SUSY_trained/'
-DATASET_NAME = "SUSY"
+MODEL_PATH = r'C:\Users\milan\Documents\rf_study\Covtype_trained\\'
+DATASET_NAME = "covtype"
 def write_array(arr_name,str_name,f):
     f.write("{}\n".format(str_name))
     f.write("{0},\n".format(len(arr_name)))
@@ -53,12 +55,25 @@ for _max_depth in range(10,MAX_DEPTH+1, 5):
     feature_list = [str(i) for i in range(0,model.n_features_)]
     
     csr_forest_trees = []
+    unsorted_csr_trees = []
     
     print("Start transforming the tree")
+
+    clustering_input = np.zeros((_n_estimators, model.n_features_))
     
     for idx in range(0,_n_estimators):
         print("Transforming tree:{0}".format(idx))
         curr_tree = model.estimators_[idx].tree_
+        dt = model.estimators_[idx]
+        # print("num features seen: "+str(dt.n_features_))
+        importances = dt.feature_importances_
+        for im_ind in range(len(importances)):
+            if abs(importances[im_ind]) <= 1e-07:
+                importances[im_ind] = 0
+            else:
+                importances[im_ind] = 1
+        # print(dt.feature_importances_)
+        clustering_input[idx, :] = importances
         num_of_nodes = curr_tree.node_count 
     
         print("Start building connection matrix")
@@ -121,11 +136,21 @@ for _max_depth in range(10,MAX_DEPTH+1, 5):
         #node_values
     
         csr_decision_tree = [num_of_nodes, node_list, edge_list, node_is_leaf, node_features, node_values]
-        csr_forest_trees.append(csr_decision_tree)
+        unsorted_csr_trees.append(csr_decision_tree)
+        # csr_forest_trees.append(csr_decision_tree)
         print("Add current CSR tree into forest")
     
+    kmeans = KMeans(n_clusters = int(math.sqrt(_n_estimators)), random_state=0).fit(clustering_input)
+    labels=kmeans.labels_
+    # print(labels)
+    for cluster in range(int(math.sqrt(_n_estimators))):
+        for lbl_idx in range(_n_estimators):
+            if int(labels[lbl_idx]) == cluster:
+                csr_forest_trees.append(unsorted_csr_trees[lbl_idx])
+
     print("\n\n Now we are trying to write CSR trees layouts")
     num_of_trees = len(csr_forest_trees) 
+    # print("num trees: "+str(num_of_trees))
     
     if num_of_trees != _n_estimators:
         print("error")
@@ -168,7 +193,7 @@ for _max_depth in range(10,MAX_DEPTH+1, 5):
     #node_features_total
     #node_values_total
     
-    treename = DATASET_NAME+"_td"+str(_max_depth)+"_ne"+str(_n_estimators) 
+    treename = "clustered"+DATASET_NAME+"_td"+str(_max_depth)+"_ne"+str(_n_estimators) 
     with open( treename + "_csr.txt",'w') as f:
         write_array( node_list_idx      , "node_list_idx"       ,f)  
         write_array( edge_list_idx      , "edge_list_idx"       ,f) 
@@ -391,7 +416,7 @@ for _max_depth in range(10,MAX_DEPTH+1, 5):
         print("\n\n Now we are trying to write treefile_hier layouts")
         
         
-        treename = DATASET_NAME+"_td"+str(_max_depth)+"_ne"+str(_n_estimators) + "_sd" + str(_subtree_depth)
+        treename = "clustered"+DATASET_NAME+"_td"+str(_max_depth)+"_ne"+str(_n_estimators) + "_sd" + str(_subtree_depth)
         with open(treename + "_hier.txt",'w') as f:
             f.write("num_of_trees\n")
             f.write("{0}, \n".format(num_of_trees))
@@ -450,11 +475,25 @@ for _n_estimators in range(10,MAX_ESTIMATORS+1, 10):
     
     csr_forest_trees = []
     
+    unsorted_csr_trees = []
+    
     print("Start transforming the tree")
+
+    clustering_input = np.zeros((_n_estimators, model.n_features_))
     
     for idx in range(0,_n_estimators):
         print("Transforming tree:{0}".format(idx))
         curr_tree = model.estimators_[idx].tree_
+        dt = model.estimators_[idx]
+        # print("num features seen: "+str(dt.n_features_))
+        importances = dt.feature_importances_
+        for im_ind in range(len(importances)):
+            if abs(importances[im_ind]) <= 1e-07:
+                importances[im_ind] = 0
+            else:
+                importances[im_ind] = 1
+        # print(dt.feature_importances_)
+        clustering_input[idx, :] = importances
         num_of_nodes = curr_tree.node_count 
     
         print("Start building connection matrix")
@@ -517,8 +556,16 @@ for _n_estimators in range(10,MAX_ESTIMATORS+1, 10):
         #node_values
     
         csr_decision_tree = [num_of_nodes, node_list, edge_list, node_is_leaf, node_features, node_values]
-        csr_forest_trees.append(csr_decision_tree)
+        unsorted_csr_trees.append(csr_decision_tree)
         print("Add current CSR tree into forest")
+    
+    kmeans = KMeans(n_clusters = int(math.sqrt(_n_estimators)), random_state=0).fit(clustering_input)
+    labels=kmeans.labels_
+    # print(labels)
+    for cluster in range(int(math.sqrt(_n_estimators))):
+        for lbl_idx in range(_n_estimators):
+            if int(labels[lbl_idx]) == cluster:
+                csr_forest_trees.append(unsorted_csr_trees[lbl_idx])
     
     print("\n\n Now we are trying to write CSR trees layouts")
     num_of_trees = len(csr_forest_trees) 
@@ -564,7 +611,7 @@ for _n_estimators in range(10,MAX_ESTIMATORS+1, 10):
     #node_features_total
     #node_values_total
     
-    treename = DATASET_NAME+"_td"+str(_max_depth)+"_ne"+str(_n_estimators)
+    treename = "clustered"+DATASET_NAME+"_td"+str(_max_depth)+"_ne"+str(_n_estimators)
     with open( treename + "_csr.txt",'w') as f:
         write_array( node_list_idx      , "node_list_idx"       ,f)  
         write_array( edge_list_idx      , "edge_list_idx"       ,f) 
@@ -787,7 +834,7 @@ for _n_estimators in range(10,MAX_ESTIMATORS+1, 10):
         print("\n\n Now we are trying to write treefile_hier layouts")
         
         
-        treename = DATASET_NAME+"_td"+str(_max_depth)+"_ne"+str(_n_estimators) + "_sd" + str(_subtree_depth)
+        treename = "clustered"+DATASET_NAME+"_td"+str(_max_depth)+"_ne"+str(_n_estimators) + "_sd" + str(_subtree_depth)
         with open(treename + "_hier.txt",'w') as f:
             f.write("num_of_trees\n")
             f.write("{0}, \n".format(num_of_trees))
