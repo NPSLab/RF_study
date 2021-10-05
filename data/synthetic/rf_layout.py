@@ -47,8 +47,8 @@ def write_2darray(arr,str_name,f):
 configs = [[50,60], [50, 20], [50, 40], [10, 45], [50,45],[100,45]]
 
 for conf in configs:
-    _n_estimators = conf[0]; 
-    _max_depth = conf[1]; 
+    _n_estimators = conf[0] 
+    _max_depth = conf[1] 
     
     # define the model
     # model = RandomForestClassifier(n_estimators= _n_estimators, max_depth = _max_depth)
