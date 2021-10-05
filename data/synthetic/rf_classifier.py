@@ -13,7 +13,7 @@ from utilities import load_objects
 from utilities import loadcsr_from_txt
 
 #configure the dataset
-_n_samples=581012*2
+_n_samples=281012
 _n_features=54
 _n_redundant=5
 _n_informative= _n_features - _n_redundant 
@@ -47,11 +47,12 @@ with open("test_input.txt",'w') as f:
     write_array(y_test,"y_test",f)
 
 #configure the forest
-_n_estimators = 100 
+_n_estimators = 5 
 _max_depth = 15 
 #_subtree_depth =  TO BE CONFIGURED IN BELOW 
 
-for _max_depth in range(7,16):    
+#for _max_depth in range(7,16):    
+for _max_depth in range(15,16):    
     
     # define the model
     model = RandomForestClassifier(n_estimators= _n_estimators, max_depth = _max_depth)
@@ -240,6 +241,7 @@ for _max_depth in range(7,16):
                     self.subtree_node_list = np.zeros(3*32) # has 3 attributes per node, feature_id node_value is_leaf 
                     self.subtree_size = 0
                     self.subtree_leaf_idx_boundry = 0
+                    self.subtree_has_leaf = 0
                     self.subtree_idx_to_other_subtree = []
             
                     #data structures of the original tree
@@ -297,6 +299,7 @@ for _max_depth in range(7,16):
                             return
                     else:
                         #print("Meet leaf node {node_id}".format(node_id=node_id))
+                        self.subtree_has_leaf=1
                         pass
                 def build_subtree_idx_to_other_subtree(self):
                     if len(self.pending_subtrees_idx) == 0:
@@ -337,8 +340,9 @@ for _max_depth in range(7,16):
         
         #  now we have forest_trees of decision_tree, each decision tree comprise subtrees that have the following attributes
         #            subtree.subtree_node_list = np.zeros(3*15) # has 3 attributes per node, feature_id node_value is_leaf 
-        #            subtree.subtree_size = 0
-        #            subtree.subtree_leaf_idx_boundry = 0
+        #            subtree.subtree_size = ?
+        #            subtree.subtree_leaf_idx_boundry = ?
+        #            subtree.subtree_has_leaf = ?
         #            subtree.subtree_idx_to_other_subtree = []
         #            decision_tree[sub_tree_num]=subtree
         #            forest_trees.append(decision_tree)
@@ -367,6 +371,7 @@ for _max_depth in range(7,16):
         idx_to_subtree_idx = 0
         
         leaf_idx_boundry = []
+        subtree_has_leaf = []
         
         for t in forest_trees:
             #update to verify t_subtree_nodes_offset
@@ -384,7 +389,9 @@ for _max_depth in range(7,16):
                 idx_to_subtree.extend(st.subtree_idx_to_other_subtree)
                 #update leaf_idx_boundry
                 leaf_idx_boundry.append(st.subtree_leaf_idx_boundry)
-        
+                #update subtree_has_leaf
+                subtree_has_leaf.append(st.subtree_has_leaf) 
+
                 #update nodes_idx, based on 3-value tuple, not number of values
                 nodes_idx += st.subtree_size 
                 idx_to_subtree_idx += len(st.subtree_idx_to_other_subtree)/2 
@@ -396,7 +403,7 @@ for _max_depth in range(7,16):
         #       nodes
         #       idx_to_subtree
         #       leaf_idx_boundry
-        #       
+        #       subtree_has_leaf 
         #       g_subtree_nodes_offset
         #       g_subtree_idx_to_subtree_offset
         print("\n\n Now we are trying to write treefile_hier layouts")
@@ -428,6 +435,12 @@ for _max_depth in range(7,16):
             f.write("leaf_idx_boundry\n")
             f.write("{0},\n".format(len(leaf_idx_boundry)))
             for val in leaf_idx_boundry:
+                f.write("{0}, ".format(val))
+            f.write("\n")
+
+            f.write("subtree_has_leaf\n")
+            f.write("{0},\n".format(len(subtree_has_leaf)))
+            for val in subtree_has_leaf:
                 f.write("{0}, ".format(val))
             f.write("\n")
             

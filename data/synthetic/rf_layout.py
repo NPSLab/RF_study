@@ -262,6 +262,7 @@ for conf in config_pairs:
                     self.subtree_size = 0
                     self.subtree_leaf_idx_boundry = 0
                     self.subtree_idx_to_other_subtree = []
+                    self.subtree_has_leaf=0
             
                     #data structures of the original tree
                     self.num_of_nodes    =  num_of_nodes  

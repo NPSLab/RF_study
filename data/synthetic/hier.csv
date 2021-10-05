@@ -1,0 +1,5 @@
+tree_depth,mapping   ,st_depth  ,method              ,time                
+15        ,atomic    ,5         ,iter_thread_meta    ,2                   
+15        ,atomic    ,5         ,iter_thread_meta    ,2                   
+15        ,atomic    ,5         ,iter_thread_meta    ,2                   
+15        ,atomic    ,5         ,iter_thread_meta    ,2                   
