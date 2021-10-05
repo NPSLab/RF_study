@@ -348,11 +348,12 @@ float predict_tree_csr_layout(unsigned *node_list, unsigned *edge_list, unsigned
 
 float predict_tree_gpu_layout(int num_of_trees, const unsigned *prefix_sum_subtree_nums, const float *nodes, const unsigned *idx_to_subtree, const unsigned *leaf_idx_boundry , const unsigned *g_subtree_nodes_offset, const unsigned *g_subtree_idx_to_subtree_offset, unsigned tree_num, float *row); 
 
-int main(){
+int main(int argc, char **argv){
 
   //common data used by both csr and hier versions of GPU kernels
   ifstream infile;
   unsigned num_of_trees;
+  unsigned tree_depth = atoi(argv[1]);
   INIT_TIMER 
   vector<unsigned> h_results;
   unsigned wrong_num = 0;
@@ -367,7 +368,7 @@ int main(){
   }
   fseek(fHier,0,SEEK_END);
   if (ftell(fHier) == 0){
-    fprintf(fHier,"%-10s,%-10s,%-10s,%-20s,%-20s\n","tree_depth","mapping","st_depth","method","time");
+    fprintf(fHier,"%-10s,%-20s,%-10s,%-10s,%-20s,%-20s\n","tree_depth","num_of_trees","mapping","st_depth","method","time");
   }
 
   //read HIER data
@@ -723,7 +724,7 @@ int main(){
   }
   cout << "hier result is wrong with this many: " << wrong_num << endl;
   cout << "accuracy rate: " << (float)(row-wrong_num)/(float)row << endl;
-  fprintf(fHier,"%-10d,%-10s,%-10d,%-20s,%-20ld\n",15,"atomic",5,"iter_thread_meta",running_time);
+  fprintf(fHier,"%-10d,%-20d,%-10s,%-10d,%-20s,%-20ld\n",tree_depth,num_of_trees,"atomic",5,"iter_thread_meta",running_time);
 #endif
 
 #ifdef GPU_HIER

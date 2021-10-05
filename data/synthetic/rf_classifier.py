@@ -47,12 +47,10 @@ with open("test_input.txt",'w') as f:
     write_array(y_test,"y_test",f)
 
 #configure the forest
-_n_estimators = 5 
-_max_depth = 15 
+_n_estimators = 8 
 #_subtree_depth =  TO BE CONFIGURED IN BELOW 
 
-#for _max_depth in range(7,16):    
-for _max_depth in range(15,16):    
+for _max_depth in range(16,17):    
     
     # define the model
     model = RandomForestClassifier(n_estimators= _n_estimators, max_depth = _max_depth)
