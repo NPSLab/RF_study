@@ -10,7 +10,7 @@ import time
 from utilities import save_objects
 from utilities import load_objects
 from utilities import loadcsr_from_txt
-from libsvm.svmutil import *
+# from libsvm.svmutil import *
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 
