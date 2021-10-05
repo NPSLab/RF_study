@@ -44,11 +44,11 @@ def write_2darray(arr,str_name,f):
 #MAX_DEPTH = 60 
 #_subtree_depth =  TO BE CONFIGURED IN BELOW 
 
-configs = [[50,60]];
+configs = [[50, 20],[50,40],[10, 45],[50,45],[100,45],[50,60]]
 
-for conf in config_pairs:
-    _n_estimators = pair[0]; 
-    _max_depth = pair[1]; 
+for conf in configs:
+    _n_estimators = conf[0]
+    _max_depth = conf[1]
     
     # define the model
     # model = RandomForestClassifier(n_estimators= _n_estimators, max_depth = _max_depth)
@@ -200,7 +200,7 @@ for conf in config_pairs:
     #node_features_total
     #node_values_total
     
-    treename = "clustered"+DATASET_NAME+"_td"+str(_max_depth)+"_ne"+str(_n_estimators) 
+    treename = "clustered_metadata_"+DATASET_NAME+"_td"+str(_max_depth)+"_ne"+str(_n_estimators) 
     with open( treename + "_csr.txt",'w') as f:
         write_array( node_list_idx      , "node_list_idx"       ,f)  
         write_array( edge_list_idx      , "edge_list_idx"       ,f) 
@@ -423,7 +423,7 @@ for conf in config_pairs:
         print("\n\n Now we are trying to write treefile_hier layouts")
         
         
-        treename = "clustered"+DATASET_NAME+"_td"+str(_max_depth)+"_ne"+str(_n_estimators) + "_sd" + str(_subtree_depth)
+        treename = "clustered_metadata_"+DATASET_NAME+"_td"+str(_max_depth)+"_ne"+str(_n_estimators) + "_sd" + str(_subtree_depth)
         with open(treename + "_hier.txt",'w') as f:
             f.write("num_of_trees\n")
             f.write("{0}, \n".format(num_of_trees))
