@@ -1,21 +1,9 @@
 #!/bin/bash
 
 cp ./test_input.txt ./tree_input.txt
-# depths = ( 20 40 45 45 45 60 )
-# estimators = ( 50 50 10 50 100 50 )
-depths[0] = 20
-depths[0] = 40
-depths[0] = 45
-depths[0] = 45
-depths[0] = 45
-depths[0] = 60
+declare -a depths = ( "20" "40" "45" "45" "45" "60" )
+declare -a estimators = ( "50" "50" "10" "50" "100" "50" )
 
-estimators[0] =50
-estimators[0] =50
-estimators[0] =10
-estimators[0] =50
-estimators[0] =100
-estimators[0] =50
 for ((i=0;i<6;i++))
 do
   tree_depth = ${depths[i]}
