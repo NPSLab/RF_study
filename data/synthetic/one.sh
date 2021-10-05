@@ -1,8 +1,8 @@
 #!/bin/bash
 
 cp ./test_input.txt ./tree_input.txt
-depths = (20 40 45 45 45 60)
-estimators = (50 50 10 50 100 50)
+depths = ( 20 40 45 45 45 60 )
+estimators = ( 50 50 10 50 100 50 )
 for ((i=0;i<6;i++))
 do
   tree_depth = ${depths[i]}
