@@ -44,9 +44,9 @@ def write_2darray(arr,str_name,f):
 #MAX_DEPTH = 60 
 #_subtree_depth =  TO BE CONFIGURED IN BELOW 
 
-configs = [[50,60]];
+configs = [[50,60], [50, 20], [50, 40], [10, 45], [50,45],[100,45]]
 
-for conf in config_pairs:
+for conf in configs:
     _n_estimators = conf[0]; 
     _max_depth = conf[1]; 
     
