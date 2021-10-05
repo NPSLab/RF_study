@@ -11,11 +11,11 @@ do
   # ne = 50
   echo
   echo "TTT$tree_depth: test tree depth $tree_depth"
-  cp ./input_files/clusteredSUSY_td${tree_depth}_ne50_csr.txt ./treefile_csr.txt
+  cp ./input_files/susy_format/clusteredSUSY_td${tree_depth}_ne50_csr.txt ./treefile_csr.txt
   ./gpu/rf_gpu_csr ${tree_depth}
 
   echo
   echo "TTT$tree_depth: test subtree depth 5"
-  cp ./input_files/clusteredSUSY_td${tree_depth}_ne50_sd4_hier.txt ./treefile_hier.txt
+  cp ./input_files/susy_format/clusteredSUSY_td${tree_depth}_ne50_sd4_hier.txt ./treefile_hier.txt
   ./gpu/rf_gpu_iter ${tree_depth}
 done
