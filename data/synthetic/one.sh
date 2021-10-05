@@ -5,8 +5,9 @@ cp ./test_input.txt ./tree_input.txt
 # declare -a estimators = ( "50" "50" "10" "50" "100" "50" )
 
 # for ne in
+for tree_depth in 20 21
 do
-  tree_depth = 20
+  # tree_depth = 20
   ne = 50
   echo
   echo "TTT$tree_depth: test tree depth $tree_depth"
