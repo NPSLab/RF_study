@@ -16,8 +16,8 @@ from utilities import loadcsr_from_txt
 from sklearn.cluster import KMeans
 
 #configure the dataset
-MODEL_PATH = r'/home/mkshah5/susy_trained//'
-DATASET_NAME = "SUSY"
+MODEL_PATH = r'/home/mkshah5/higgs_trained//'
+DATASET_NAME = "HIGGS"
 def write_array(arr_name,str_name,f):
     f.write("{}\n".format(str_name))
     f.write("{0},\n".format(len(arr_name)))
@@ -44,11 +44,11 @@ def write_2darray(arr,str_name,f):
 #MAX_DEPTH = 60 
 #_subtree_depth =  TO BE CONFIGURED IN BELOW 
 
-configs = [[50,60]];
+configs = [[50,60], [50, 20], [50, 40], [10, 45], [50,45],[100,45]]
 
-for conf in config_pairs:
-    _n_estimators = conf[0]; 
-    _max_depth = conf[1]; 
+for conf in configs:
+    _n_estimators = conf[0] 
+    _max_depth = conf[1] 
     
     # define the model
     # model = RandomForestClassifier(n_estimators= _n_estimators, max_depth = _max_depth)

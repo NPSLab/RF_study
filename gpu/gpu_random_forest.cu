@@ -387,6 +387,7 @@ int main(int argc, char **argv){
   unsigned wrong_num = 0;
   dim3 gridD(80);
   dim3 blockD(256);
+  cudaSetDevice(0);
 
 #ifdef GPU_HIER
   //read HIER data
@@ -603,7 +604,7 @@ int main(int argc, char **argv){
   cudaMemset(d_results, 0 , row*sizeof(unsigned));
   cout << cudaGetErrorName(cudaGetLastError()) << endl;
   START_TIMER
-  csr_kernel<<<80,256>>>(
+  csr_kernel<<<60,256>>>(
                           num_of_trees           ,
                           d_node_list_idx      ,
                           d_edge_list_idx      ,
@@ -622,7 +623,7 @@ int main(int argc, char **argv){
                           d_queries            ,
                           d_results                  
   );
-  generate_results<<<80,256>>>(row, num_of_trees, d_results);
+  generate_results<<<60,256>>>(row, num_of_trees, d_results);
   cudaDeviceSynchronize();
   STOP_TIMER("csr kernel")
   cout << "Kernel returned:" << cudaGetErrorName(cudaGetLastError()) << endl;
