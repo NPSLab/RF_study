@@ -4,3 +4,11 @@ tree_depth,num_of_trees        ,mapping   ,st_depth  ,method              ,time
 16        ,8                   ,atomic    ,5         ,iter_thread_meta    ,5                   
 15        ,8                   ,atomic    ,5         ,iter_thread_meta    ,4                   
 16        ,8                   ,atomic    ,5         ,iter_thread_meta    ,5                   
+15        ,8                   ,atomic    ,5         ,iter_thread_meta    ,4                   
+16        ,8                   ,atomic    ,5         ,iter_thread_meta    ,5                   
+15        ,8                   ,atomic    ,5         ,iter_thread_meta    ,4                   
+16        ,8                   ,atomic    ,5         ,iter_thread_meta    ,5                   
+15        ,8                   ,atomicFree,5         ,iter_thread_meta    ,4                   
+15        ,8                   ,atomic    ,5         ,iter_thread_meta    ,9                   
+16        ,8                   ,atomicFree,5         ,iter_thread_meta    ,4                   
+16        ,8                   ,atomic    ,5         ,iter_thread_meta    ,13                  

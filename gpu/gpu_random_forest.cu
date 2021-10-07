@@ -40,106 +40,7 @@ milliseconds running_time;
 
 #ifdef GPU_HIER
 __global__ void
-hier_kernel(
-  unsigned num_of_trees           ,
-  unsigned *prefix_sum_subtree_nums        ,
-  float    *nodes                          ,
-  unsigned *idx_to_subtree                 ,  
-  unsigned *leaf_idx_boundry               ,
-  unsigned *g_subtree_nodes_offset         ,  
-  unsigned *g_subtree_idx_to_subtree_offset,  
-
-  unsigned num_of_queries         ,
-  unsigned num_of_features        ,
-  float *queries                  ,
-  unsigned *results                  
-){
-
-    for (int tid = blockDim.x*blockIdx.x + threadIdx.x; tid < num_of_queries; tid += blockDim.x*gridDim.x){
-      //fetch a new query
-      float * row = queries + tid*num_of_features; 
-         for(int tree_num = 0; tree_num < num_of_trees; ++tree_num){
-            //go over trees
-            //tree_num=0;
-            unsigned tree_off_set = prefix_sum_subtree_nums[tree_num];
-            //unsigned num_of_subtrees = prefix_sum_subtree_nums[tree_num+1] - tree_off_set;
-        
-            unsigned curr_subtree_idx = 0 ;  
-
-            //iterate over subtree
-            while (true){
-                //fetch the subtree nodes
-                const float *subtree_node_list;
-                subtree_node_list = nodes + g_subtree_nodes_offset[tree_off_set+curr_subtree_idx]*3 ;
-        
-                //fetch subtree_leaf_idx_boundry
-                const unsigned subtree_leaf_idx_boundry = leaf_idx_boundry[tree_off_set+curr_subtree_idx];
-        
-                //fetch subtree_idx_to_other_subtree
-                const unsigned *subtree_idx_to_subtree = idx_to_subtree + g_subtree_idx_to_subtree_offset[tree_off_set+curr_subtree_idx]*2;
-        
-                //iterate over nodes in a subtree
-                bool return_from_curr_tree = false;
-                
-                //start from node 0
-                unsigned curr_node = 0;
-
-                //start a encoded-topology subtree traversal
-#ifdef ET3
-                #include "./generate_encoded_topology/et3.inc"
-#endif
-#ifdef ET4
-                #include "./generate_encoded_topology/et4.inc"
-#endif
-#ifdef ET5
-                #include "./generate_encoded_topology/et5.inc"
-#endif
-                //encoded-topology subtree ends
-                
-                //start a recursive/iterative subtree traversal
-#ifdef ITER
-                while (true){
-                    unsigned feature_id = subtree_node_list[curr_node*3];
-                    float node_value    = subtree_node_list[curr_node*3+1];
-                    unsigned is_tree_leaf    = subtree_node_list[curr_node*3+2];
-                    // if node is leaf, then the prediction is over, we return the predicted value in node_value (in a tree leaf, node_value holds the predicted result)
-                    //if (is_tree_leaf==1){ atomicAdd(results+tid, (unsigned)node_value); return_from_curr_tree = true; break; }
-                    if (is_tree_leaf==1){ atomicAdd(results+tid, (unsigned)node_value); return_from_curr_tree = true; goto SUBTREE_END; }
-                    // if node is not leaf, we need two comparisons to decide if we keep traverse inside current subtree, or we go to another subtree
-                    bool not_subtree_bottom = curr_node < subtree_leaf_idx_boundry;
-                    bool go_left = row[feature_id] <= node_value;
-                    // if not reach bottom of subtree, keep iterating using 2*i+1 or 2*i+2
-                    if (not_subtree_bottom){
-                        // go to left child in subtree
-                        if (go_left)
-                            curr_node = curr_node*2 + 1;
-                        // go to right child in subtree
-                        else
-                            curr_node = curr_node*2 + 2;
-                    // if reach bottom of subtree, then we need to go to another subtree
-                    } else{
-                        unsigned leaf_idx = curr_node - subtree_leaf_idx_boundry;
-                        if (go_left)
-                            curr_subtree_idx = subtree_idx_to_subtree[2*leaf_idx];
-                        else
-                            curr_subtree_idx = subtree_idx_to_subtree[2*leaf_idx+1];
-                        //stop the iterating of the current subtree, jump to the outer loop
-                        //break;
-                        goto SUBTREE_END;
-                    }
-                }
-#endif
-                //end subtree
-                //if return from curr tree, skip all rest of subtrees, break from looping over subtrees
-SUBTREE_END:
-                if (return_from_curr_tree) break;
-            }
-//}
- }}
-}
-
-__global__ void
-hier_kernel_metadata(
+hier_kernel_metadata_atomicFree(
   unsigned num_of_trees           ,
   unsigned *prefix_sum_subtree_nums        ,
   float    *nodes                          ,
@@ -160,10 +61,7 @@ hier_kernel_metadata(
       float * row = queries + tid*num_of_features; 
          for(int tree_num = 0; tree_num < num_of_trees; ++tree_num){
             //go over trees
-            //tree_num=0;
             unsigned tree_off_set = prefix_sum_subtree_nums[tree_num];
-            //unsigned num_of_subtrees = prefix_sum_subtree_nums[tree_num+1] - tree_off_set;
-        
             unsigned curr_subtree_idx = 0 ;  
 
             //iterate over subtree
@@ -194,8 +92,12 @@ hier_kernel_metadata(
                     float node_value    = subtree_node_list[curr_node*3+1];
                     unsigned is_tree_leaf    = subtree_node_list[curr_node*3+2];
                     // if node is leaf, then the prediction is over, we return the predicted value in node_value (in a tree leaf, node_value holds the predicted result)
-                    //if (is_tree_leaf==1){ atomicAdd(results+tid, (unsigned)node_value); return_from_curr_tree = true; break; }
-                    if (is_tree_leaf==1){ atomicAdd(results+tid, (unsigned)node_value); return_from_curr_tree = true; goto SUBTREE_END; }
+                    if (is_tree_leaf==1)
+                    { 
+                      results[tid]+=(unsigned)node_value; 
+                      return_from_curr_tree = true; 
+                      goto SUBTREE_END; 
+                    }
                     // if node is not leaf, we need two comparisons to decide if we keep traverse inside current subtree, or we go to another subtree
                     bool not_subtree_bottom = curr_node < subtree_leaf_idx_boundry;
                     bool go_left = row[feature_id] <= node_value;
@@ -263,6 +165,132 @@ SUBTREE_END:
  }}
 }
 
+__global__ void
+hier_kernel_metadata_atomic(
+  unsigned num_of_trees           ,
+  unsigned *prefix_sum_subtree_nums        ,
+  float    *nodes                          ,
+  unsigned *idx_to_subtree                 ,  
+  unsigned *leaf_idx_boundry               ,
+  unsigned *subtree_has_leaf_arr           ,
+  unsigned *g_subtree_nodes_offset         ,  
+  unsigned *g_subtree_idx_to_subtree_offset,  
+
+  unsigned num_of_queries         ,
+  unsigned num_of_features        ,
+  float *queries                  ,
+  unsigned *results                  
+){
+
+   for(int tree_num=blockIdx.x; tree_num< num_of_trees; tree_num+=gridDim.x){
+       //fetch a new tree
+       unsigned tree_off_set = prefix_sum_subtree_nums[tree_num];
+       for (int tid = threadIdx.x; tid < num_of_queries; tid += blockDim.x){
+            //fetch a new query
+            float *row = queries + tid*num_of_features; 
+        
+            unsigned curr_subtree_idx = 0 ;  
+
+            //iterate over subtree
+            while (true){
+                //fetch the subtree nodes
+                const float *subtree_node_list;
+                subtree_node_list = nodes + g_subtree_nodes_offset[tree_off_set+curr_subtree_idx]*3 ;
+        
+                //fetch subtree_leaf_idx_boundry
+                const unsigned subtree_leaf_idx_boundry = leaf_idx_boundry[tree_off_set+curr_subtree_idx];
+                const unsigned subtree_has_leaf = subtree_has_leaf_arr[tree_off_set+curr_subtree_idx];
+        
+                //fetch subtree_idx_to_other_subtree
+                const unsigned *subtree_idx_to_subtree = idx_to_subtree + g_subtree_idx_to_subtree_offset[tree_off_set+curr_subtree_idx]*2;
+        
+                //iterate over nodes in a subtree
+                bool return_from_curr_tree = false;
+                
+                //start from node 0
+                unsigned curr_node = 0;
+                
+                //start a recursive/iterative subtree traversal
+
+        if (subtree_has_leaf)
+        {
+                while (true){
+                    unsigned feature_id = subtree_node_list[curr_node*3];
+                    float node_value    = subtree_node_list[curr_node*3+1];
+                    unsigned is_tree_leaf    = subtree_node_list[curr_node*3+2];
+                    // if node is leaf, then the prediction is over, we return the predicted value in node_value (in a tree leaf, node_value holds the predicted result)
+                    if (is_tree_leaf==1)
+                    { 
+                      atomicAdd(results+tid, (unsigned)node_value); 
+                      return_from_curr_tree = true; 
+                      goto SUBTREE_END; 
+                    }
+                    // if node is not leaf, we need two comparisons to decide if we keep traverse inside current subtree, or we go to another subtree
+                    bool not_subtree_bottom = curr_node < subtree_leaf_idx_boundry;
+                    bool go_left = row[feature_id] <= node_value;
+                    // if not reach bottom of subtree, keep iterating using 2*i+1 or 2*i+2
+                    if (not_subtree_bottom){
+                        // go to left child in subtree
+                        if (go_left)
+                            curr_node = curr_node*2 + 1;
+                        // go to right child in subtree
+                        else
+                            curr_node = curr_node*2 + 2;
+                    // if reach bottom of subtree, then we need to go to another subtree
+                    } else{
+                        unsigned leaf_idx = curr_node - subtree_leaf_idx_boundry;
+                        if (go_left)
+                            curr_subtree_idx = subtree_idx_to_subtree[2*leaf_idx];
+                        else
+                            curr_subtree_idx = subtree_idx_to_subtree[2*leaf_idx+1];
+                        //stop the iterating of the current subtree, jump to the outer loop
+                        //break;
+                        goto SUBTREE_END;
+                    }
+                }
+        }
+        else{
+                while (true){
+                    unsigned feature_id = subtree_node_list[curr_node*3];
+                    float node_value    = subtree_node_list[curr_node*3+1];
+                    //unsigned is_tree_leaf    = subtree_node_list[curr_node*3+2];
+
+                    // if node is leaf, then the prediction is over, we return the predicted value in node_value (in a tree leaf, node_value holds the predicted result)
+                    //if (is_tree_leaf==1){ atomicAdd(results+tid, (unsigned)node_value); return_from_curr_tree = true; break; }
+                    //if (is_tree_leaf==1){ atomicAdd(results+tid, (unsigned)node_value); return_from_curr_tree = true; goto SUBTREE_END; }
+                    // if node is not leaf, we need two comparisons to decide if we keep traverse inside current subtree, or we go to another subtree
+                    bool not_subtree_bottom = curr_node < subtree_leaf_idx_boundry;
+                    bool go_left = row[feature_id] <= node_value;
+                    // if not reach bottom of subtree, keep iterating using 2*i+1 or 2*i+2
+                    if (not_subtree_bottom){
+                        // go to left child in subtree
+                        if (go_left)
+                            curr_node = curr_node*2 + 1;
+                        // go to right child in subtree
+                        else
+                            curr_node = curr_node*2 + 2;
+                    // if reach bottom of subtree, then we need to go to another subtree
+                    } else{
+                        unsigned leaf_idx = curr_node - subtree_leaf_idx_boundry;
+                        if (go_left)
+                            curr_subtree_idx = subtree_idx_to_subtree[2*leaf_idx];
+                        else
+                            curr_subtree_idx = subtree_idx_to_subtree[2*leaf_idx+1];
+                        //stop the iterating of the current subtree, jump to the outer loop
+                        //break;
+                        goto SUBTREE_END;
+                    }
+                }
+
+        }
+                //end subtree
+                //if return from curr tree, skip all rest of subtrees, break from looping over subtrees
+SUBTREE_END:
+                if (return_from_curr_tree) break;
+            }
+//}
+ }}
+}
 #endif //end GPU_HIER
 
 #ifdef GPU_CSR 
@@ -357,6 +385,8 @@ int main(int argc, char **argv){
   INIT_TIMER 
   vector<unsigned> h_results;
   unsigned wrong_num = 0;
+  dim3 gridD(80);
+  dim3 blockD(256);
 
 #ifdef GPU_HIER
   //read HIER data
@@ -687,12 +717,12 @@ int main(int argc, char **argv){
   cudaMemcpy( d_g_subtree_nodes_offset         ,g_subtree_nodes_offset.data()         ,sizeof( unsigned )*g_subtree_nodes_offset.size()         ,cudaMemcpyHostToDevice);
   cudaMemcpy( d_g_subtree_idx_to_subtree_offset,g_subtree_idx_to_subtree_offset.data(),sizeof( unsigned )*g_subtree_idx_to_subtree_offset.size(),cudaMemcpyHostToDevice);
   
-  cout << "Start executing hier format on GPU" << endl;
+  cout << "Start executing hier atomic free kernel on GPU" << endl;
   cout << cudaGetErrorName(cudaGetLastError()) << endl;
   //reset result array to 0
   cudaMemset(d_results, 0 , row*sizeof(unsigned));
   START_TIMER
-  hier_kernel_metadata<<<80,256>>>(
+  hier_kernel_metadata_atomicFree<<<gridD,blockD>>>(
                           num_of_trees                     ,
                           d_prefix_sum_subtree_nums        ,
                           d_nodes                          ,
@@ -707,7 +737,47 @@ int main(int argc, char **argv){
                           d_queries                        ,
                           d_results                  
   );
-  generate_results<<<80,256>>>(row, num_of_trees, d_results);
+  generate_results<<<gridD,blockD>>>(row, num_of_trees, d_results);
+  cudaDeviceSynchronize();
+  STOP_TIMER("hier kernel")
+  cout << "Kernel returned:" << cudaGetErrorName(cudaGetLastError()) << endl;
+
+  h_results.resize(row);
+  cudaMemcpy( h_results.data(), d_results, sizeof(unsigned)*row, cudaMemcpyDeviceToHost);
+  cudaDeviceSynchronize();
+
+  wrong_num = 0;
+  for(auto i=0; i < row;++i){
+    if (h_results[i]!=y_test[i]){
+      wrong_num++;
+    }
+  }
+  cout << "hier result is wrong with this many: " << wrong_num << endl;
+  cout << "accuracy rate: " << (float)(row-wrong_num)/(float)row << endl;
+  fprintf(fHier,"%-10d,%-20d,%-10s,%-10d,%-20s,%-20ld\n",tree_depth,num_of_trees,"atomicFree",5,"iter_thread_meta",running_time);
+
+
+
+  cout << "Start executing hier atomic kernel on GPU" << endl;
+  //reset result array to 0
+  cudaMemset(d_results, 0 , row*sizeof(unsigned));
+  START_TIMER
+  hier_kernel_metadata_atomic<<<gridD,blockD>>>(
+                          num_of_trees                     ,
+                          d_prefix_sum_subtree_nums        ,
+                          d_nodes                          ,
+                          d_idx_to_subtree                 ,  
+                          d_leaf_idx_boundry               ,
+                          d_subtree_has_leaf               ,
+                          d_g_subtree_nodes_offset         ,  
+                          d_g_subtree_idx_to_subtree_offset,  
+  
+                          row                              ,
+                          col                              ,
+                          d_queries                        ,
+                          d_results                  
+  );
+  generate_results<<<gridD,blockD>>>(row, num_of_trees, d_results);
   cudaDeviceSynchronize();
   STOP_TIMER("hier kernel")
   cout << "Kernel returned:" << cudaGetErrorName(cudaGetLastError()) << endl;
@@ -725,9 +795,7 @@ int main(int argc, char **argv){
   cout << "hier result is wrong with this many: " << wrong_num << endl;
   cout << "accuracy rate: " << (float)(row-wrong_num)/(float)row << endl;
   fprintf(fHier,"%-10d,%-20d,%-10s,%-10d,%-20s,%-20ld\n",tree_depth,num_of_trees,"atomic",5,"iter_thread_meta",running_time);
-#endif
 
-#ifdef GPU_HIER
   fclose(fHier);
 #endif
 
