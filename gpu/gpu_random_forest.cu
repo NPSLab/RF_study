@@ -385,7 +385,7 @@ int main(int argc, char **argv){
   INIT_TIMER 
   vector<unsigned> h_results;
   unsigned wrong_num = 0;
-  dim3 gridD(80);
+  dim3 gridD(60);
   dim3 blockD(256);
   cudaSetDevice(0);
 
