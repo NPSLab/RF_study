@@ -11,12 +11,12 @@ do
   # ne = 50
   echo
   echo "TTT$tree_depth: test tree depth $tree_depth"
-  cp ./input_files/clusteredHIGGS_td${tree_depth}_ne50_csr.txt ./treefile_csr.txt
+  cp ./input_files/clusteredSUSY_td${tree_depth}_ne50_csr.txt ./treefile_csr.txt
   ./gpu/rf_gpu_csr ${tree_depth}
 
   echo
   echo "TTT$tree_depth: test subtree depth 5"
-  cp ./input_files/clusteredHIGGS_td${tree_depth}_ne50_sd4_hier.txt ./treefile_hier.txt
+  cp ./input_files/clusteredSUSY_td${tree_depth}_ne50_sd4_hier.txt ./treefile_hier.txt
   ./gpu/rf_gpu_iter ${tree_depth}
 done
 
@@ -26,11 +26,11 @@ do
   # ne = 50
   echo
   echo "TTT45: test tree depth 45"
-  cp ./input_files/clusteredHIGGS_td45_ne${ne}_csr.txt ./treefile_csr.txt
+  cp ./input_files/clusteredSUSY_td45_ne${ne}_csr.txt ./treefile_csr.txt
   ./gpu/rf_gpu_csr 45
 
   echo
   echo "TTT45: test subtree depth 5"
-  cp ./input_files/clusteredHIGGS_td45_ne${ne}_sd4_hier.txt ./treefile_hier.txt
+  cp ./input_files/clusteredSUSY_td45_ne${ne}_sd4_hier.txt ./treefile_hier.txt
   ./gpu/rf_gpu_iter 45
 done
