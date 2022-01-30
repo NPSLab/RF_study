@@ -195,7 +195,7 @@ for conf in configs:
     # model = load_objects("td_forest10")[0]
     model.fit(X, y)
 
-    results_file = open(DATASET_NAME[i]+"_cuml_results.txt", 'a')
+    results_file = open("SUSY_cuml_results.txt", 'a')
 
     results_file.write("td: " +str(_max_depth)+" ne: "+str(_n_estimators)+ "\n")
     # model = RandomForestClassifier(n_estimators= NUM_ESTIMATORS[j], max_depth = DEPTHS[j])
@@ -214,7 +214,7 @@ for conf in configs:
     results_file.write("Time to complete: "+str(end_time)+"\n")
     results_file.write("\n")
     results_file.close()
-    
+    print("Ran CUML in "+str(end_time))
     #generate strings for each feature name used in dot file, feature[i] is str(i)
     feature_list = [str(i) for i in range(0,model.n_features_)]
     
