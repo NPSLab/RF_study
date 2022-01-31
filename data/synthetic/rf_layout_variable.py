@@ -16,8 +16,21 @@ from utilities import loadcsr_from_txt
 from sklearn.cluster import KMeans
 
 #configure the dataset
-MODEL_PATH = r'/home/mkshah5/susy_trained//'
-DATASET_NAME = "SUSY"
+MODEL_PATH = r'C:\Users\milan\Documents\rf_study\RF_study\data\susy'
+DATASET_NAME = "SYNTHETIC"
+
+_n_samples=581012*2
+_n_features=54
+_n_redundant=5
+_n_informative= _n_features - _n_redundant 
+_random_state=3
+
+X_all, y_all = make_classification(n_samples=_n_samples, n_features=_n_features, n_informative=_n_informative, n_redundant=_n_redundant, random_state=_random_state)
+
+X, X_test, y, y_test = train_test_split(X_all, y_all, test_size=0.5)
+
+
+
 def write_array(arr_name,str_name,f):
     f.write("{}\n".format(str_name))
     f.write("{0},\n".format(len(arr_name)))
@@ -34,10 +47,18 @@ def write_2darray(arr,str_name,f):
             f.write("{0}, ".format(col))
     f.write("\n")
 
+print("save test inputs")
+with open("test_input.txt",'w') as f:
+    ##X_test, y_test 
+    write_2darray(X_test,"X_test",f)
+    write_array(y_test,"y_test",f)
+
 class SubTree:
     def __init__(self, subtree_max_depth , num_of_nodes, node_list, edge_list, node_is_leaf, node_features, node_values, pending_subtrees_to_build,latest_tree_num ):
         #subtree structures
 #MODIFY
+        
+
 
         self.subtree_max_depth = subtree_max_depth
         #32 is ok for depth until 5
@@ -62,6 +83,37 @@ class SubTree:
 
     def build_subtree(self,node_id,subtree_node_id,depth):
 
+        if int(depth) == 0:
+            level = 0
+            curr_node = 0
+            nodes_to_check = 1
+            depths = [0]
+            st_var_max = 0
+            percent_leaf = 0.0
+            leaves = 0
+            while curr_node < nodes_to_check:
+                has_leaf = False
+                
+                for i in range(int(curr_node+node_id), int(nodes_to_check+node_id)):
+                    
+                    if self.node_is_leaf[i] == 1:
+                        leaves+=1
+                        has_leaf = True
+                percent_leaf = float(leaves)/float(nodes_to_check-curr_node)
+                if percent_leaf >= 0.1:
+                    break
+                else:
+                    level+=1
+                    depths.append(int(nodes_to_check))
+                    curr_node = nodes_to_check
+                    nodes_to_check = nodes_to_check + int(math.pow(2.0, float(level)))
+            
+            self.subtree_max_depth = level
+            self.depth_map = depths
+            self.subtree_node_list = np.zeros(3*int(math.pow(2.0, float(level+1))))
+            if node_id == 0:
+                print("node_id: "+str(node_id)+" max_depth: "+str(self.subtree_max_depth))
+            
         #store the deepest depth/leaf_idx_boundry that has been reached during building current subtree
         leaf_idx_boundry = self.depth_map[depth]
         if leaf_idx_boundry > self.subtree_leaf_idx_boundry:
@@ -124,20 +176,22 @@ class SubTree:
 #MAX_DEPTH = 60 
 #_subtree_depth =  TO BE CONFIGURED IN BELOW 
 
-# configs = [[50, 20],[50,40],[10, 45],[50,45],[100,45],[50,60]]
-configs = [[10,10]]
+configs = [[50, 20],[50,40],[10, 45],[50,45],[100,45],[50,60]]
+# configs =[[50,20]]
+# configs = [[10,10]]
 
 for conf in configs:
     _n_estimators = conf[0]
     _max_depth = conf[1]
     
     # define the model
-    # model = RandomForestClassifier(n_estimators= _n_estimators, max_depth = _max_depth)
+    model = RandomForestClassifier(n_estimators= _n_estimators, max_depth = _max_depth)
     
     # fit the model on the whole dataset
     print("Loading model")
-    model = load_objects(MODEL_PATH+"MODEL"+DATASET_NAME+"_td"+str(_max_depth)+"_ne"+str(_n_estimators))[0]
-    # model.fit(X, y)
+    # model = load_objects(MODEL_PATH+"MODEL"+DATASET_NAME+"_td"+str(_max_depth)+"_ne"+str(_n_estimators))[0]
+    # model = load_objects("td_forest10")[0]
+    model.fit(X, y)
     
     #generate strings for each feature name used in dot file, feature[i] is str(i)
     feature_list = [str(i) for i in range(0,model.n_features_)]
@@ -192,6 +246,7 @@ for conf in configs:
                 found_one = 1
     
             if found_one == 0:
+                print("Tree num: " + str(idx)+"Tree:"+str(idx)+"leaf: "+str(i))
                 node_is_leaf[i]=1
         
         node_list[num_of_nodes] = curr_idx
@@ -316,7 +371,7 @@ for conf in configs:
     
     
     
-    for _subtree_depth in range(2,5): 
+    for _subtree_depth in range(4,5): 
         
         forest_trees = []
         #_subtree_depth = 2 
@@ -332,8 +387,8 @@ for conf in configs:
             node_is_leaf  = csr_decision_tree[3] 
             node_features = csr_decision_tree[4] 
             node_values   = csr_decision_tree[5] 
-            print(node_list)
-            print(node_is_leaf)
+            # print(node_list)
+            # print(node_is_leaf)
             #build current hier_tree
             decision_tree={}
             pending_subtrees_to_build = [[0,0]]
@@ -345,7 +400,7 @@ for conf in configs:
                 sub_tree_num = pending_subtrees_to_build[0][1]
                 
                 pending_subtrees_to_build.pop(0)
-                
+                # print("Tree,subtree, original node="+str(i)+","+str(sub_tree_num)+","+str(ori_node_id))
                 subtree = SubTree(_subtree_depth, num_of_nodes ,node_list ,edge_list ,node_is_leaf ,node_features ,node_values , pending_subtrees_to_build, latest_tree_num)
                 
                 subtree.build_subtree(node_id=ori_node_id,subtree_node_id=0,depth=0)

@@ -23,13 +23,13 @@ from sklearn.cluster import KMeans
 #configure the dataset
 CUML_ITERATIONS = 50
 MODEL_PATH = r'C:\Users\milan\Documents\rf_study\RF_study\data\susy'
-DATASET_NAME = "SUSY"
+DATASET_NAME = "HIGGS"
 
-_n_samples=1500000
-_n_features=18
-_n_redundant=1
-_n_informative= _n_features - _n_redundant 
-_random_state=6
+_n_samples= 1100000
+_n_features= 28
+_n_redundant= 3
+_n_informative = _n_features - _n_redundant 
+_random_state= 4
 
 X_all, y_all = make_classification(n_samples=_n_samples, n_features=_n_features, n_informative=_n_informative, n_redundant=_n_redundant, random_state=_random_state)
 
