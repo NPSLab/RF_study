@@ -17,7 +17,7 @@ from utilities import load_objects
 from utilities import loadcsr_from_txt
 from sklearn.cluster import KMeans
 
-CUML_ITERATIONS = 50
+CUML_ITERATIONS = 25
 
 #configure the dataset
 _n_samples= 1100000
@@ -76,27 +76,27 @@ for conf in configs:
     # fit the model on the whole dataset
     print("Loading model")
     # model = load_objects(MODEL_PATH+"MODEL"+DATASET_NAME+"_td"+str(_max_depth)+"_ne"+str(_n_estimators))[0]
+    model.fit(X, y)
+
+    results_file = open(DATASET_NAME+"_cuml_results.txt", 'a')
+
+    results_file.write("td: " +str(_max_depth)+" ne: "+str(_n_estimators)+ "\n")
+    # model = RandomForestClassifier(n_estimators= NUM_ESTIMATORS[j], max_depth = DEPTHS[j])
     # model.fit(X, y)
-
-    # results_file = open(DATASET_NAME+"_cuml_results.txt", 'a')
-
-    # results_file.write("td: " +str(_max_depth)+" ne: "+str(_n_estimators)+ "\n")
-    # # model = RandomForestClassifier(n_estimators= NUM_ESTIMATORS[j], max_depth = DEPTHS[j])
-    # # model.fit(X, y)
-    # # preds = model.predict(X_test)
-    # # score = sklearn.metrics.accuracy_score(y_test, preds)
-    # # results_file.write("Expected Score: "+str(score) +"\n")
-    # X_gpu = cuda.to_device(np.ascontiguousarray(X_test.astype(np.float32)))
+    # preds = model.predict(X_test)
+    # score = sklearn.metrics.accuracy_score(y_test, preds)
+    # results_file.write("Expected Score: "+str(score) +"\n")
+    X_gpu = cuda.to_device(np.ascontiguousarray(X_test.astype(np.float32)))
     
-    # for i in range(0,CUML_ITERATIONS):
-    #     fm = ForestInference.load_from_sklearn(model, output_class=True)
-    #     start_time = time.time()
-    #     fil_preds_gpu = fm.predict(X_gpu)
-    #     end_time = time.time() - start_time
-    #     accuracy_score = sklearn.metrics.accuracy_score(y_test, np.asarray(fil_preds_gpu))
-    #     results_file.write("Average Accuracy: "+str(accuracy_score)+", Time to complete: "+str(end_time)+"\n")
-    # results_file.close()
-    # print("Ran CUML")
+    for i in range(0,CUML_ITERATIONS):
+        fm = ForestInference.load_from_sklearn(model, output_class=True)
+        start_time = time.time()
+        fil_preds_gpu = fm.predict(X_gpu)
+        end_time = time.time() - start_time
+        accuracy_score = sklearn.metrics.accuracy_score(y_test, np.asarray(fil_preds_gpu))
+        results_file.write("Average Accuracy: "+str(accuracy_score)+", Time to complete: "+str(end_time)+"\n")
+    results_file.close()
+    print("Ran CUML")
     
     #generate strings for each feature name used in dot file, feature[i] is str(i)
     feature_list = [str(i) for i in range(0,model.n_features_)]
