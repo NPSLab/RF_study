@@ -320,9 +320,9 @@ for conf in configs:
                 def build_subtree(self,node_id,subtree_node_id,depth):
                     
                     if node_id == 0:
-                        self.depth_map       = [0,1,3,7,15,31,63,127,255,511,1023, 2047]
-                        self.subtree_max_depth = 11
-                        self.subtree_node_list = np.zeros(3*4096)
+                        self.depth_map       = [0,1,3,7,15,31,63,127,255,511,1023, 2047, 4095, 8191, 16383]
+                        self.subtree_max_depth = 14
+                        self.subtree_node_list = np.zeros(3*32768)
 
                     #store the deepest depth/leaf_idx_boundry that has been reached during building current subtree
                     leaf_idx_boundry = self.depth_map[depth]
