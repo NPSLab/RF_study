@@ -505,7 +505,7 @@ for conf in configs:
         print("\n\n Now we are trying to write treefile_hier layouts")
         
         
-        treename = "clustered_large_"+DATASET_NAME+"_td"+str(_max_depth)+"_ne"+str(_n_estimators) + "_sd" + str(_subtree_depth)
+        treename = "clustered_large_"+DATASET_NAME+"_td"+str(_max_depth)+"_ne"+str(_n_estimators) + "_sd" + str(_subtree_depth) + "_pl"+str(max_percent_leaf)
         with open(treename + "_hier.txt",'w') as f:
             f.write("num_of_trees\n")
             f.write("{0}, \n".format(num_of_trees))
