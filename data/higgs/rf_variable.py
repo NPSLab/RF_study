@@ -65,7 +65,7 @@ with open("test_input.txt",'w') as f:
 #MAX_DEPTH = 60 
 #_subtree_depth =  TO BE CONFIGURED IN BELOW 
 
-configs = [[100, 20, 0.3],[100,40, 0.3],[100,60, 0.3], [100, 20, 0.6],[100,40, 0.6],[100,60, 0.6]]
+configs = [[100, 15, 0.3],[100,25, 0.3],[100,30, 0.3], [100, 15, 0.6],[100,25, 0.6],[100,30, 0.6]]
 
 for conf in configs:
     _n_estimators = conf[0]
@@ -335,7 +335,7 @@ for conf in configs:
                         prev_curr_node = 0
                         while curr_node < nodes_to_check:
                             has_leaf = False
-                            
+                            leaves = 0
                             for i in range(int(curr_node+node_id), int(nodes_to_check+node_id)):
                                 
                                 if self.node_is_leaf[i] == 1:
@@ -355,7 +355,7 @@ for conf in configs:
                         self.depth_map = depths
                         self.subtree_node_list = np.zeros(3*int(math.pow(2.0, float(level+1))))
                         # if node_id == 0:
-                        #     print("node_id: "+str(node_id)+" max_depth: "+str(self.subtree_max_depth))
+                        print(" max_depth: "+str(self.subtree_max_depth)+ " percent leaf: "+str(percent_leaf))
                     # if node_id == 0:
                     #     self.depth_map       = [0,1,3,7,15,31,63,127,255,511,1023, 2047, 4095, 8191, 16383]
                     #     self.subtree_max_depth = 14
