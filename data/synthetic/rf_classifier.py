@@ -13,7 +13,8 @@ from utilities import load_objects
 from utilities import loadcsr_from_txt
 
 #configure the dataset
-_n_samples=581012*2
+#Reece  how to synthesize the input data
+_n_samples=200000
 _n_features=54
 _n_redundant=5
 _n_informative= _n_features - _n_redundant 
@@ -22,6 +23,7 @@ _random_state=3
 # define dataset
 X_all, y_all = make_classification(n_samples=_n_samples, n_features=_n_features, n_informative=_n_informative, n_redundant=_n_redundant, random_state=_random_state)
 
+#Reece split the data set into training and testing with the ratio
 X, X_test, y, y_test = train_test_split(X_all, y_all, test_size=0.5)
 
 def write_array(arr_name,str_name,f):
@@ -46,12 +48,13 @@ with open("test_input.txt",'w') as f:
     write_2darray(X_test,"X_test",f)
     write_array(y_test,"y_test",f)
 
-#configure the forest
+#Reece configure the forest
 _n_estimators = 100 
-_max_depth = 15 
+#_max_depth = 15 
 #_subtree_depth =  TO BE CONFIGURED IN BELOW 
 
-for _max_depth in range(7,16):    
+#Reece max depth of decision trees
+for _max_depth in range(7,9):    
     
     # define the model
     model = RandomForestClassifier(n_estimators= _n_estimators, max_depth = _max_depth)
@@ -213,7 +216,7 @@ for _max_depth in range(7,16):
     #     locals()[listname] = list_mapping[listname]
     
     
-    
+    #Reece sub tree maximum depth 2,3,4  -> 3,4,5 
     for _subtree_depth in range(2,5): 
         
         forest_trees = []

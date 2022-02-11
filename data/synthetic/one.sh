@@ -2,7 +2,8 @@
 
 cp ./test_input.txt ./tree_input.txt
 
-for sd in 10 
+#Reece tree depth, sd is tree depth, not subtree depth
+for sd in 7 
 do
   echo "TTT$sd: test tree depth $sd"
   cp ./td${sd}_csr.txt ./treefile_csr.txt
