@@ -83,7 +83,7 @@ for ne in NE_RANGE:
         for pl in PL_RANGE:
             configs.append([ne, td, pl])
 
-NE_RANGE = [10, 25, 50, 100]
+NE_RANGE = [10, 25, 100]
 TD_RANGE = [20]
 PL_RANGE = [0.3, 0.5, 0.7, 0.9]
 
