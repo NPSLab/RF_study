@@ -71,8 +71,10 @@ with open("test_input.txt",'w') as f:
 #_n_estimators = 50 
 #MAX_DEPTH = 60 
 #_subtree_depth =  TO BE CONFIGURED IN BELOW 
+
 NE_RANGE = [50]
 TD_RANGE = [10, 15, 20, 25, 30, 35, 40]
+
 PL_RANGE = [0.3, 0.5, 0.7, 0.9]
 configs = []
 
@@ -107,7 +109,7 @@ for conf in configs:
 
     results_file = open(DATASET_NAME+"_cuml_results.txt", 'a')
 
-    results_file.write("td: " +str(_max_depth)+" ne: "+str(_n_estimators)+ "\n")
+    results_file.write("pl: "+str(max_percent_leaf)+" td: " +str(_max_depth)+" ne: "+str(_n_estimators)+ "\n")
     # model = RandomForestClassifier(n_estimators= NUM_ESTIMATORS[j], max_depth = DEPTHS[j])
     # model.fit(X, y)
     # preds = model.predict(X_test)
@@ -302,7 +304,7 @@ for conf in configs:
     
     
     
-    for _subtree_depth in range(10,11): 
+    for _subtree_depth in range(9,10): 
         
         forest_trees = []
         #_subtree_depth = 2 

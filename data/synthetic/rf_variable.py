@@ -34,7 +34,7 @@ X, X_test, y, y_test = train_test_split(X_all, y_all, test_size=0.5)
 
 #configure the dataset
 MODEL_PATH = r'/home/mkshah5/susy_trained//'
-DATASET_NAME = "HIGGS"
+DATASET_NAME = "SYNTHETIC"
 def write_array(arr_name,str_name,f):
     f.write("{}\n".format(str_name))
     f.write("{0},\n".format(len(arr_name)))
@@ -65,7 +65,7 @@ with open("test_input.txt",'w') as f:
 #MAX_DEPTH = 60 
 #_subtree_depth =  TO BE CONFIGURED IN BELOW 
 NE_RANGE = [100]
-TD_RANGE = [10, 20, 30, 40]
+TD_RANGE = [15, 25, 35]
 PL_RANGE = [0.3, 0.5, 0.7, 0.9]
 configs = []
 
@@ -91,7 +91,7 @@ for conf in configs:
 
     results_file = open(DATASET_NAME+"_cuml_results.txt", 'a')
 
-    results_file.write("td: " +str(_max_depth)+" ne: "+str(_n_estimators)+ "\n")
+    results_file.write("pl: "+ str(max_percent_leaf) +"td: " +str(_max_depth)+" ne: "+str(_n_estimators)+ "\n")
     # model = RandomForestClassifier(n_estimators= NUM_ESTIMATORS[j], max_depth = DEPTHS[j])
     # model.fit(X, y)
     # preds = model.predict(X_test)
@@ -286,7 +286,7 @@ for conf in configs:
     
     
     
-    for _subtree_depth in range(10,11): 
+    for _subtree_depth in range(9,10): 
         
         forest_trees = []
         #_subtree_depth = 2 
