@@ -20,6 +20,9 @@ from sklearn.cluster import KMeans
 CUML_ITERATIONS = 25
 MAX_STD = 20
 
+IN_FILE = "HIGGS.csv"
+DATASET_NAME = "HIGGS"
+
 #configure the dataset
 _n_samples= 1100000
 _n_features= 28
@@ -28,8 +31,12 @@ _n_informative = _n_features - _n_redundant
 _random_state= 4
 
 # define dataset
-X_all, y_all = make_classification(n_samples=_n_samples, n_features=_n_features, n_informative=_n_informative, n_redundant=_n_redundant, random_state=_random_state)
+# X_all, y_all = make_classification(n_samples=_n_samples, n_features=_n_features, n_informative=_n_informative, n_redundant=_n_redundant, random_state=_random_state)
 
+dataset = np.loadtxt(IN_FILE, dtype=float,delimiter=',', skiprows=1)
+
+X_all = dataset[:,1:]
+y_all = dataset[:, 0]
 X, X_test, y, y_test = train_test_split(X_all, y_all, test_size=0.5)
 
 #configure the dataset
@@ -64,10 +71,19 @@ with open("test_input.txt",'w') as f:
 #_n_estimators = 50 
 #MAX_DEPTH = 60 
 #_subtree_depth =  TO BE CONFIGURED IN BELOW 
-NE_RANGE = [100]
-TD_RANGE = [10, 20, 30, 40]
+NE_RANGE = [50]
+TD_RANGE = [10, 15, 20, 25, 30, 35, 40]
 PL_RANGE = [0.3, 0.5, 0.7, 0.9]
 configs = []
+
+for ne in NE_RANGE:
+    for td in TD_RANGE:
+        for pl in PL_RANGE:
+            configs.append([ne, td, pl])
+
+NE_RANGE = [10, 25, 50, 100]
+TD_RANGE = [20]
+PL_RANGE = [0.3, 0.5, 0.7, 0.9]
 
 for ne in NE_RANGE:
     for td in TD_RANGE:
