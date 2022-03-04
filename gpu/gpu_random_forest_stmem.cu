@@ -302,7 +302,7 @@ int main(){
   cudaGetDeviceProperties(&deviceProp, 0);
 
   shared_mem_blk = (float)SHARED_MEM_USAGE * deviceProp.sharedMemPerBlock;
-  int subtree_max_depth = 5;
+  int subtree_max_depth = 6;
 #ifdef GPU_HIER
   //read HIER data
   infile.open("treefile_hier.txt");
