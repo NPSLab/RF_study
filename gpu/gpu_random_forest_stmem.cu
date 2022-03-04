@@ -566,9 +566,9 @@ int main(){
                           col                              ,
                           d_queries                        ,
                           d_results                        ,
-                          shared_mem_blk-4                 ,
-                          RATIO_QUERIES                    ,
-                          subtree_max_depth                
+                          shared_mem_blk-(unsigned long)4         ,
+                          (float)RATIO_QUERIES                    ,
+                          (int)subtree_max_depth                
   );
   generate_results<<<numBlocks,threadsPerBlock>>>(row, num_of_trees, d_results);
   cudaDeviceSynchronize();
