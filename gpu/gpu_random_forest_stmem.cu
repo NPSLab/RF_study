@@ -65,8 +65,7 @@ hier_kernel(
   unsigned *results               ,
   unsigned long sm_bytes_available,
   float ratio_queries             ,
-  int max_st_depth                ,
-  int num_of_queries
+  int max_st_depth                
 ){
     unsigned long queries_allocable = floor((sm_bytes_available*ratio_queries)/(sizeof(float)*num_of_features));
     unsigned long subtree_bytes_allocable = floor(sm_bytes_available*(1.0-ratio_queries));
