@@ -617,7 +617,7 @@ int main(){
   // int max_st_depth
 
   START_TIMER
-  hier_kernel<<<numBlocks,threadsPerBlock>>>(
+  hier_kernel<<<numBlocks,threadsPerBlock, shared_mem_blk>>>(
                           num_of_trees                     ,
                           d_prefix_sum_subtree_nums        ,
                           d_nodes                          ,
