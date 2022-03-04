@@ -66,10 +66,10 @@ __global__ void hier_kernel(
   float ratio_queries             ,
   int max_st_depth                
 ){
-    unsigned long queries_allocable = floor((sm_bytes_available*ratio_queries)/(sizeof(float)*num_of_features));
-    unsigned long subtree_bytes_allocable = floor(sm_bytes_available*(1.0-ratio_queries));
+    unsigned long queries_allocable = ((sm_bytes_available*ratio_queries)/(sizeof(float)*num_of_features));
+    unsigned long subtree_bytes_allocable = (sm_bytes_available*(1.0-ratio_queries));
     int nodes_per_subtree = pow(2.0,max_st_depth)-1;
-    int max_subtrees_loadable = floor(subtree_bytes_allocable/(3*sizeof(float)*nodes_per_subtree));
+    int max_subtrees_loadable = (subtree_bytes_allocable/(3*sizeof(float)*nodes_per_subtree));
 
     extern __shared__ float shared_mem_space[];
     float* query_space = shared_mem_space;
