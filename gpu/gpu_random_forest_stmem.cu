@@ -48,7 +48,7 @@ using namespace std;
   #define STOP_TIMER(name)
 #endif
 
-#ifdef GPU_HIER
+
 __global__ void hier_kernel(
   unsigned num_of_trees           ,
   unsigned *prefix_sum_subtree_nums        ,
@@ -198,7 +198,7 @@ __global__ void hier_kernel(
     } 
 }
 
-#endif
+
 
 
 
@@ -553,9 +553,10 @@ int main(){
   // int batch_end                   ,
   // int max_st_depth
   int floats_needed = shared_mem_blk/sizeof(float);
-
+  dim3 gridSize(80,1,1);
+  dim3 blockSize(64,1,1);
   START_TIMER
-  hier_kernel<<<80,64, floats_needed*sizeof(float)>>>(
+  hier_kernel<<<gridSize,blockSize, floats_needed*sizeof(float)>>>(
                           num_of_trees                     ,
                           d_prefix_sum_subtree_nums        ,
                           d_nodes                          ,
@@ -572,7 +573,7 @@ int main(){
                           (float)RATIO_QUERIES                    ,
                           (int)subtree_max_depth                
   );
-  generate_results<<<numBlocks,threadsPerBlock>>>(row, num_of_trees, d_results);
+  generate_results<<<gridSize,blockSize>>>(row, num_of_trees, d_results);
   cudaDeviceSynchronize();
   STOP_TIMER("hier kernel")
   cout << "Kernel returned:" << cudaGetErrorName(cudaGetLastError()) << endl;
