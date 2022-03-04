@@ -176,11 +176,11 @@ hier_kernel(
                   // if reach bottom of subtree, then we need to go to another subtree
                   } else{
                       unsigned leaf_idx = curr_node - subtree_leaf_idx_boundry;
-                      if (go_left)
+                      if (go_left){
                           subtree_for_query = subtree_idx_to_subtree[2*leaf_idx];
-                      else
+                      }else{
                           subtree_for_query = subtree_idx_to_subtree[2*leaf_idx+1];
-                          
+                      }    
                       //stop the iterating of the current subtree, jump to the outer loop
                       //break;
                       break;
@@ -263,8 +263,7 @@ csr_kernel(
 }
 #endif
 
-__global__ void 
-generate_results(unsigned num_of_queries, unsigned num_of_trees, unsigned * results){
+__global__ void generate_results(unsigned num_of_queries, unsigned num_of_trees, unsigned * results){
     unsigned threshold = num_of_trees/2;
     for (int tid = blockDim.x*blockIdx.x + threadIdx.x; tid < num_of_queries; tid += blockDim.x*gridDim.x){
       if (results[tid] > threshold)
@@ -275,10 +274,8 @@ generate_results(unsigned num_of_queries, unsigned num_of_trees, unsigned * resu
 }
 
 
-template <typename T>
-unsigned read_arr(ifstream &infile, vector<T> &output ,string var_name);
-template <typename T>
-void read_2darr(ifstream &infile, vector<T> &output ,string var_name, unsigned &row, unsigned &cow);
+template <typename T> unsigned read_arr(ifstream &infile, vector<T> &output ,string var_name);
+template <typename T> void read_2darr(ifstream &infile, vector<T> &output ,string var_name, unsigned &row, unsigned &cow);
 
 float predict_tree_csr_layout(unsigned *node_list, unsigned *edge_list, unsigned *node_is_leaf, unsigned *node_features, float *node_values, float *row);
 
@@ -631,8 +628,7 @@ int main(){
                           d_results                        ,
                           shared_mem_blk-4                 ,
                           RATIO_QUERIES                    ,
-                          subtree_max_depth                ,
-                          row
+                          subtree_max_depth                
   );
   generate_results<<<numBlocks,threadsPerBlock>>>(row, num_of_trees, d_results);
   cudaDeviceSynchronize();
