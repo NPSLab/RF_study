@@ -237,8 +237,10 @@ int main(){
   cudaSetDevice(0);
   cudaGetDeviceProperties(&deviceProp, 0);
 
-  shared_mem_blk = (float)SHARED_MEM_USAGE * deviceProp.sharedMemPerBlock;
+  shared_mem_blk = (unsigned long)((float)SHARED_MEM_USAGE * deviceProp.sharedMemPerBlock);
   int subtree_max_depth = 6;
+
+  cout << "Shared mem per block: " << shared_mem_blk << "\n";
 #ifdef GPU_HIER
   //read HIER data
   infile.open("treefile_hier.txt");
