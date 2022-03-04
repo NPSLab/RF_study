@@ -49,8 +49,7 @@ using namespace std;
 #endif
 
 #ifdef GPU_HIER
-__global__ void
-hier_kernel(
+__global__ void hier_kernel(
   unsigned num_of_trees           ,
   unsigned *prefix_sum_subtree_nums        ,
   float    *nodes                          ,
@@ -196,72 +195,12 @@ hier_kernel(
         }
       }
       current_query+=queries_used;
-      
+    } 
 }
 
 #endif
 
-#ifdef GPU_CSR 
-__global__ void
-csr_kernel(
-  unsigned num_of_trees           ,
-  unsigned *   node_list_idx      ,
-  unsigned *   edge_list_idx      ,
-  unsigned *   node_is_leaf_idx   ,
-  unsigned *   node_features_idx  ,
-  unsigned *   node_values_idx    ,
 
-  unsigned *   node_list_total    ,
-  unsigned *   edge_list_total    ,
-  unsigned *   node_is_leaf_total ,
-  unsigned *   node_features_total,
-  float    *   node_values_total  ,
-
-  unsigned num_of_queries         ,
-  unsigned num_of_features        ,
-  float *queries                  ,
-  unsigned *results                  
-){
-    for (int tid = blockDim.x*blockIdx.x + threadIdx.x; tid < num_of_queries; tid += blockDim.x*gridDim.x){
-            //fetch a new query
-            float * row = queries + tid*num_of_features; 
-            //go over trees
-            for(int i=0; i< num_of_trees; ++i){
-                //csr layout
-                //unsigned num_of_nodes = node_list_idx[i+1]-node_list_idx[i]-1;
-                unsigned * node_list = node_list_total + node_list_idx[i];
-                unsigned * edge_list = edge_list_total + edge_list_idx[i];
-                unsigned * node_is_leaf = node_is_leaf_total + node_is_leaf_idx[i];
-                unsigned * node_features = node_features_total + node_features_idx[i];
-                float * node_values = node_values_total + node_values_idx[i];
-        
-                //start from node 0
-                unsigned curr_node = 0;
-                //iterate over nodes in a subtree
-                while (true){
-                    unsigned feature_id    = node_features[curr_node]; 
-                    float node_value       = node_values[curr_node];
-                    unsigned is_tree_leaf  = node_is_leaf[curr_node];
-                    // if node is leaf, then the prediction is over, we return the predicted value in node_value (in a tree leaf, node_value holds the predicted result)
-                    if (is_tree_leaf==1){
-                      //results[tid] = node_value;
-//                        if (node_value == 1.0f){
-                          atomicAdd(results+tid,(unsigned)node_value);
-//                        }
-                      break;
-                    }
-                    // if node is not leaf, we need two comparisons to decide if we keep traverse 
-                    bool go_left = row[feature_id] <= node_value;
-                    if (go_left)
-                        curr_node = edge_list[node_list[curr_node]]; 
-                    // go to right child in subtree
-                    else
-                        curr_node = edge_list[node_list[curr_node]+1]; 
-                }
-            }
-    }     
-}
-#endif
 
 __global__ void generate_results(unsigned num_of_queries, unsigned num_of_trees, unsigned * results){
     unsigned threshold = num_of_trees/2;
