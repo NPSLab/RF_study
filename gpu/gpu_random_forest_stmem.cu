@@ -71,7 +71,7 @@ __global__ void hier_kernel(
     int nodes_per_subtree = pow(2.0,max_st_depth)-1;
     int max_subtrees_loadable = (subtree_bytes_allocable/(3*sizeof(float)*nodes_per_subtree));
 
-    extern __shared__ float shared_mem_space[];
+    __shared__ float shared_mem_space[12284];
     float* query_space = shared_mem_space;
     float* subtree_space = shared_mem_space+(queries_allocable*num_of_features);
 
@@ -557,7 +557,7 @@ int main(){
   dim3 gridSize(80,1,1);
   dim3 blockSize(64,1,1);
   START_TIMER
-  hier_kernel<<<gridSize,blockSize, floats_needed*sizeof(float)>>>(
+  hier_kernel<<<gridSize,blockSize>>>(
                           num_of_trees                     ,
                           d_prefix_sum_subtree_nums        ,
                           d_nodes                          ,
