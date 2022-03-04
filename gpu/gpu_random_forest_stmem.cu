@@ -108,7 +108,7 @@ hier_kernel(
       {
         float * row = query_space + (tid-current_query)*num_of_features;                                      // assign a query to a thread
         for(int tree_num = 0; tree_num < num_of_trees; ++tree_num){                                           //iterate over all trees
-          __shared__ int thd_done_count;
+          __shared__ unsigned int thd_done_count;
           if (threadIdx.x == 0)
           {
             thd_done_count = 0;
