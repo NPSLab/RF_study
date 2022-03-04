@@ -225,6 +225,7 @@ int main(){
   cudaDeviceProp deviceProp;
   int numBlocks = 80;
   int threadsPerBlock = 64;
+  float queries_share = 0.5;
 
   //common data used by both csr and hier versions of GPU kernels
   ifstream infile;
@@ -570,8 +571,8 @@ int main(){
                           d_queries                        ,
                           d_results                        ,
                           shared_mem_blk-(unsigned long)4         ,
-                          (float)RATIO_QUERIES                    ,
-                          (int)subtree_max_depth                
+                          queries_share                   ,
+                          subtree_max_depth                
   );
   generate_results<<<gridSize,blockSize>>>(row, num_of_trees, d_results);
   cudaDeviceSynchronize();
