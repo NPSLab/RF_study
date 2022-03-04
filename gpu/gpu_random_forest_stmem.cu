@@ -550,9 +550,10 @@ int main(){
   // int batch_start                 ,
   // int batch_end                   ,
   // int max_st_depth
+  int floats_needed = shared_mem_blk/sizeof(float);
 
   START_TIMER
-  hier_kernel<<<numBlocks,threadsPerBlock, shared_mem_blk>>>(
+  hier_kernel<<<80,64, floats_needed*sizeof(float)>>>(
                           num_of_trees                     ,
                           d_prefix_sum_subtree_nums        ,
                           d_nodes                          ,
