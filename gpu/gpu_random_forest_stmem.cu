@@ -132,9 +132,9 @@ __global__ void hier_kernel(
 
               for (int node = threadIdx.x; node < subtree_leaf_boundary; node+=blockDim.x)                    // Assign each thread to a node to populate
               {
-                subtree_space[(subtrees_loaded*nodes_per_subtree+node)*3] = subtree_node_list[node*3];        //feature_id
-                subtree_space[(subtrees_loaded*nodes_per_subtree+node + 1)*3] = subtree_node_list[node*3+1];  //node_value
-                subtree_space[(subtrees_loaded*nodes_per_subtree+node + 2)*3] = subtree_node_list[node*3+2];  //is_node_leaf
+                subtree_space[subtrees_loaded*nodes_per_subtree+(node*3)] = subtree_node_list[node*3];        //feature_id
+                subtree_space[subtrees_loaded*nodes_per_subtree+(node*3)+1] = subtree_node_list[node*3+1];  //node_value
+                subtree_space[subtrees_loaded*nodes_per_subtree+(node*3)+2] = subtree_node_list[node*3+2];  //is_node_leaf
               }
               subtrees_loaded++;                                                                              // Subtree has been loaded, increment
             }
@@ -155,9 +155,9 @@ __global__ void hier_kernel(
                 unsigned curr_node = 0;
 
                 while (true){
-                  unsigned feature_id = subtree_space[((st_traverse-curr_subtree_idx)*nodes_per_subtree+curr_node)*3];
-                  float node_value = subtree_space[((st_traverse-curr_subtree_idx)*nodes_per_subtree+curr_node+1)*3];
-                  unsigned is_tree_leaf = subtree_space[((st_traverse-curr_subtree_idx)*nodes_per_subtree+curr_node+2)*3];
+                  unsigned feature_id = subtree_space[(st_traverse-curr_subtree_idx)*nodes_per_subtree+(curr_node*3)];
+                  float node_value = subtree_space[(st_traverse-curr_subtree_idx)*nodes_per_subtree+(curr_node*3)+1];
+                  unsigned is_tree_leaf = subtree_space[(st_traverse-curr_subtree_idx)*nodes_per_subtree+(curr_node*3)+2];
                   
                   // if node is leaf, then the prediction is over, we return the predicted value in node_value (in a tree leaf, node_value holds the predicted result)
                   if (is_tree_leaf==1){ atomicAdd(results+tid, (unsigned)node_value); atomicInc(&thd_done_count,1);return_from_curr_tree = true; break; }
