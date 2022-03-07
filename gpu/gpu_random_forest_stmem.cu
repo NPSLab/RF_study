@@ -156,7 +156,7 @@ __global__ void hier_kernel(
 
                 while (true){
                   unsigned feature_id = subtree_space[((st_traverse-curr_subtree_idx)*nodes_per_subtree+curr_node)*3];
-                  unsigned node_value = subtree_space[((st_traverse-curr_subtree_idx)*nodes_per_subtree+curr_node+1)*3];
+                  float node_value = subtree_space[((st_traverse-curr_subtree_idx)*nodes_per_subtree+curr_node+1)*3];
                   unsigned is_tree_leaf = subtree_space[((st_traverse-curr_subtree_idx)*nodes_per_subtree+curr_node+2)*3];
                   
                   // if node is leaf, then the prediction is over, we return the predicted value in node_value (in a tree leaf, node_value holds the predicted result)
@@ -167,11 +167,11 @@ __global__ void hier_kernel(
                   // if not reach bottom of subtree, keep iterating using 2*i+1 or 2*i+2
                   if (not_subtree_bottom){
                       // go to left child in subtree
-                      if (go_left)
+                      if (go_left){
                           curr_node = curr_node*2 + 1;
                       // go to right child in subtree
-                      else
-                          curr_node = curr_node*2 + 2;
+                      }else{
+                          curr_node = curr_node*2 + 2;}
                   // if reach bottom of subtree, then we need to go to another subtree
                   } else{
                       unsigned leaf_idx = curr_node - subtree_leaf_idx_boundry;
