@@ -124,17 +124,21 @@ __global__ void hier_kernel(
             if(thd_done_count == min(blockDim.x, queries_used)){                                              // If all active queries complete for this tree, break
               break;
             }
+	    
             int subtrees_loaded = 0;                                                                          // Number of subtrees loaded into shared mem
             while(subtrees_loaded < max_subtrees_loadable){                                                   // Iterate over subtrees that CAN be loaded into shared mem
-              if(curr_subtree_idx+subtrees_loaded >= num_of_subtrees-1){break;}
+              if(curr_subtree_idx+subtrees_loaded >= num_of_subtrees){break;}
               float *subtree_node_list = nodes + g_subtree_nodes_offset[tree_off_set+subtrees_loaded+curr_subtree_idx]*3 ; //Index into subtree node start
               int subtree_leaf_boundary = leaf_idx_boundry[tree_off_set+subtrees_loaded+curr_subtree_idx];    // Boundary of the subtree
 
-              for (int node = threadIdx.x; node < subtree_leaf_boundary; node+=blockDim.x)                    // Assign each thread to a node to populate
+              for (int n = threadIdx.x; n < subtree_leaf_boundary+(subtree_leaf_boundary+1); n+=blockDim.x)                    // Assign each thread to a node to populate
               {
-                subtree_space[subtrees_loaded*nodes_per_subtree+(node*3)] = subtree_node_list[node*3];        //feature_id
-                subtree_space[subtrees_loaded*nodes_per_subtree+(node*3)+1] = subtree_node_list[node*3+1];  //node_value
-                subtree_space[subtrees_loaded*nodes_per_subtree+(node*3)+2] = subtree_node_list[node*3+2];  //is_node_leaf
+		//if(tid == 0 && curr_subtree_idx == 0){
+		//	printf("here\n");
+		//}
+                subtree_space[3*subtrees_loaded*nodes_per_subtree+(n*3)] = subtree_node_list[n*3];        //feature_id
+                subtree_space[3*subtrees_loaded*nodes_per_subtree+(n*3)+1] = subtree_node_list[n*3+1];  //node_value
+                subtree_space[3*subtrees_loaded*nodes_per_subtree+(n*3)+2] = subtree_node_list[n*3+2];  //is_node_leaf
               }
               subtrees_loaded++;                                                                              // Subtree has been loaded, increment
             }
@@ -143,11 +147,11 @@ __global__ void hier_kernel(
 
             
             for(int st_traverse = curr_subtree_idx; st_traverse < curr_subtree_idx+subtrees_loaded; st_traverse++){ //Begin iterating over all loaded subtrees
-              if(return_from_curr_tree){subtree_for_query = -2;break;}
+              if(return_from_curr_tree){subtree_for_query = -2;}
               if(st_traverse == subtree_for_query){                                                           // If this subtree is one that the query should traverse...
                 const unsigned subtree_leaf_idx_boundry = leaf_idx_boundry[tree_off_set+st_traverse];         // Fetch leaf boundary of current subtree
       
-                const unsigned *subtree_idx_to_subtree = idx_to_subtree + g_subtree_idx_to_subtree_offset[tree_off_set+curr_subtree_idx]*2;
+                const unsigned *subtree_idx_to_subtree = idx_to_subtree + g_subtree_idx_to_subtree_offset[tree_off_set+st_traverse]*2;
         
                 
                 
@@ -155,15 +159,25 @@ __global__ void hier_kernel(
                 unsigned curr_node = 0;
 
                 while (true){
-                  unsigned feature_id = subtree_space[(st_traverse-curr_subtree_idx)*nodes_per_subtree+(curr_node*3)];
-                  float node_value = subtree_space[(st_traverse-curr_subtree_idx)*nodes_per_subtree+(curr_node*3)+1];
-                  unsigned is_tree_leaf = subtree_space[(st_traverse-curr_subtree_idx)*nodes_per_subtree+(curr_node*3)+2];
-                  
+                  unsigned feature_id = subtree_space[3*(st_traverse-curr_subtree_idx)*nodes_per_subtree+(curr_node*3)];
+                  float node_value = subtree_space[3*(st_traverse-curr_subtree_idx)*nodes_per_subtree+(curr_node*3)+1];
+                  unsigned is_tree_leaf = subtree_space[3*(st_traverse-curr_subtree_idx)*nodes_per_subtree+(curr_node*3)+2];
+                  //if(tid == 0){
+		//	printf("csi %d feature_id %d node_value %f leaf %d query_val %f boundry %d curr_node %d\n", curr_subtree_idx, feature_id, node_value, is_tree_leaf, row[feature_id], subtree_leaf_idx_boundry, curr_node);
+		  //}
                   // if node is leaf, then the prediction is over, we return the predicted value in node_value (in a tree leaf, node_value holds the predicted result)
-                  if (is_tree_leaf==1){ atomicAdd(results+tid, (unsigned)node_value); atomicInc(&thd_done_count,1);return_from_curr_tree = true; break; }
+                  if (is_tree_leaf==1){ 
+			  atomicAdd(results+tid, (unsigned)node_value); 
+			  atomicInc(&thd_done_count,1);
+			  return_from_curr_tree = true; 
+			  break; 
+		  }
                   // if node is not leaf, we need two comparisons to decide if we keep traverse inside current subtree, or we go to another subtree
                   bool not_subtree_bottom = curr_node < subtree_leaf_idx_boundry;
                   bool go_left = row[feature_id] <= node_value;
+		  //if(threadIdx.x == 0 && blockIdx.x == 0){
+		//	printf("test\n");	
+		  //}
                   // if not reach bottom of subtree, keep iterating using 2*i+1 or 2*i+2
                   if (not_subtree_bottom){
                       // go to left child in subtree
@@ -182,13 +196,16 @@ __global__ void hier_kernel(
                       }    
                       //stop the iterating of the current subtree, jump to the outer loop
                       //break;
+		      
                       break;
                   }
 
               //end subtree
                 }
+		
               }
             }
+	    __syncthreads();
             curr_subtree_idx+=subtrees_loaded;
           }
           
