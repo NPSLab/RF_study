@@ -126,7 +126,7 @@ __global__ void hier_kernel(
             }
             int subtrees_loaded = 0;                                                                          // Number of subtrees loaded into shared mem
             while(subtrees_loaded < max_subtrees_loadable){                                                   // Iterate over subtrees that CAN be loaded into shared mem
-             
+              if(curr_subtree_idx+subtrees_loaded >= num_of_subtrees-1){break;}
               float *subtree_node_list = nodes + g_subtree_nodes_offset[tree_off_set+subtrees_loaded+curr_subtree_idx]*3 ; //Index into subtree node start
               int subtree_leaf_boundary = leaf_idx_boundry[tree_off_set+subtrees_loaded+curr_subtree_idx];    // Boundary of the subtree
 
