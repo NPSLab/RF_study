@@ -66,7 +66,7 @@ hier_kernel(
   int *d_curr_st_traverse
 ){
 
-  __shared__ float subtree_space[(RATIO_ST*SM_BYTES)/sizeof(float)];
+  __shared__ float subtree_space[(int)((RATIO_ST*SM_BYTES)/sizeof(float))];
 
   int tree_num = blockIdx.x;
   unsigned tree_offset = prefix_sum_subtree_nums[tree_num];
