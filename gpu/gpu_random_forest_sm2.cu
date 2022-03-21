@@ -82,15 +82,22 @@ hier_kernel(
   {
     int subtrees_loaded = 0;
     while(subtrees_loaded < max_subtrees_loadable){
-      if (global_subtree_idx+subtrees_loaded >= num_of_subtrees-1){break;}
+      if (global_subtree_idx+subtrees_loaded >= num_of_subtrees){break;}
       float *subtree_node_list = nodes + g_subtree_nodes_offset[tree_offset+subtrees_loaded+global_subtree_idx]*3 ; //Index into subtree node start
       int subtree_leaf_boundary = leaf_idx_boundry[tree_offset+subtrees_loaded+global_subtree_idx];
 
-      for (int node = threadIdx.x; node < subtree_leaf_boundary; node+=blockDim.x)                    // Assign each thread to a node to populate
+      for (int node = threadIdx.x; node < subtree_leaf_boundary+subtree_leaf_boundary+2; node+=blockDim.x)                    // Assign each thread to a node to populate
       {
-        subtree_space[subtrees_loaded*nodes_per_subtree+(node*3)] = subtree_node_list[node*3];        //feature_id
-        subtree_space[subtrees_loaded*nodes_per_subtree+(node*3)+1] = subtree_node_list[node*3+1];  //node_value
-        subtree_space[subtrees_loaded*nodes_per_subtree+(node*3)+2] = subtree_node_list[node*3+2];  //is_node_leaf
+	//if(global_subtree_idx==0 && blockIdx.x==0&& subtrees_loaded*3*nodes_per_subtree + (node*3) == 63){
+		
+	//	printf("problem subtrees_loaded %d nodes_per_subtree %d node %d\n", subtrees_loaded, nodes_per_subtree, node);
+	//}
+	//if(tree_num==0 && threadIdx.x==0){
+	//	printf("block\n");
+	//}
+        subtree_space[subtrees_loaded*3*nodes_per_subtree+(node*3)] = subtree_node_list[node*3];        //feature_id
+        subtree_space[subtrees_loaded*3*nodes_per_subtree+(node*3)+1] = subtree_node_list[node*3+1];  //node_value
+        subtree_space[subtrees_loaded*3*nodes_per_subtree+(node*3)+2] = subtree_node_list[node*3+2];  //is_node_leaf
       }
       __syncthreads();
       subtrees_loaded++;   
@@ -113,10 +120,13 @@ hier_kernel(
           unsigned curr_node = 0;
 
           while (true){
-            unsigned feature_id = subtree_space[(st-global_subtree_idx)*nodes_per_subtree+(curr_node*3)];
-            float node_value = subtree_space[(st-global_subtree_idx)*nodes_per_subtree+(curr_node*3)+1];
-            unsigned is_tree_leaf = subtree_space[(st-global_subtree_idx)*nodes_per_subtree+(curr_node*3)+2];
-            
+            unsigned feature_id = subtree_space[(st-global_subtree_idx)*3*nodes_per_subtree+(curr_node*3)];
+            float node_value = subtree_space[(st-global_subtree_idx)*3*nodes_per_subtree+(curr_node*3)+1];
+            unsigned is_tree_leaf = subtree_space[(st-global_subtree_idx)*3*nodes_per_subtree+(curr_node*3)+2];
+            //if(tid ==0 && tree_num == 0){
+	//	printf("fid %d nval %f qval %f itl %d st %d\n", feature_id, node_value, row[feature_id], is_tree_leaf, st);
+	  //  }
+
             // if node is leaf, then the prediction is over, we return the predicted value in node_value (in a tree leaf, node_value holds the predicted result)
             if (is_tree_leaf==1){ atomicAdd(results+tid, (unsigned)node_value); curr_st_traverse[tid] = -1; break; }
             // if node is not leaf, we need two comparisons to decide if we keep traverse inside current subtree, or we go to another subtree
@@ -149,6 +159,9 @@ hier_kernel(
       }
     }
     __syncthreads();
+    //if(threadIdx.x ==0 && blockIdx.x==0){
+    //	printf("in here\n");
+    //}
     global_subtree_idx+=subtrees_loaded;
   }
   
@@ -568,7 +581,7 @@ int main(){
   {
     int queries_start = pass*(row/QUERIES_PASSES);
     int queries_end = queries_start + (row/QUERIES_PASSES);
-    hier_kernel<<<num_of_trees,256>>>(
+    hier_kernel<<<num_of_trees,512>>>(
       num_of_trees                     ,
       d_prefix_sum_subtree_nums        ,
       d_nodes                          ,
@@ -587,7 +600,7 @@ int main(){
       d_curr_st_traverse
     );
     cudaDeviceSynchronize();
-    cudaMemset(d_curr_st_traverse, 0, sizeof( int      )*num_of_trees*(row/QUERIES_PASSES));
+    //cudaMemset(d_curr_st_traverse, 0, sizeof( int      )*num_of_trees*(row/QUERIES_PASSES));
   }
   
 
