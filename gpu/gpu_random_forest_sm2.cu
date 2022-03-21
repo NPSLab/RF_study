@@ -581,7 +581,7 @@ int main(){
   {
     int queries_start = pass*(row/QUERIES_PASSES);
     int queries_end = queries_start + (row/QUERIES_PASSES);
-    hier_kernel<<<num_of_trees,512>>>(
+    hier_kernel<<<num_of_trees,256>>>(
       num_of_trees                     ,
       d_prefix_sum_subtree_nums        ,
       d_nodes                          ,
