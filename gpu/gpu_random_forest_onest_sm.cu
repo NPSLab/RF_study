@@ -64,54 +64,47 @@ hier_kernel(
 ){
   
   __shared__ float subtree_space[(int)(3*MAX_NODES_ST)];
-  __shared__ float query_space[(int)((SM_BYTES*RATIO_ST)/sizeof(float))];
-  int max_queries = (int)(((SM_BYTES*RATIO_ST)/sizeof(float))/num_of_features);
+  int max_queries_loadable = (RATIO_ST*SM_BYTES)/(sizeof(float)*num_of_features);
+  __shared__ float query_space[max_queries_loadable*num_of_features];
   // __shared__ float subtree_space[(int)((RATIO_ST*SM_BYTES)/sizeof(float))];
   // int nodes_per_subtree = pow(2.0,max_subtree_depth) - 1;
   // int max_subtrees_loadable = (RATIO_ST*SM_BYTES)/(3*sizeof(float)*nodes_per_subtree);
-  int current_query = 0;
-  
-  while(current_query<num_of_queries){
+
+
+  for(int tree_num = 0; tree_num <num_of_trees; tree_num++){
+    //Load first subtree stage
+    unsigned tree_offset = prefix_sum_subtree_nums[tree_num];
+    float *subtree_node_list = nodes + g_subtree_nodes_offset[tree_offset]*3 ; //Index into subtree node start
+    int subtree_boundary = leaf_idx_boundry[tree_offset];
+
     
-    int queries_loaded = 0;
-    for (int q = current_query; q < current_query+max_queries; q++)
+
+    for (int node = threadIdx.x; node < subtree_boundary+subtree_boundary+2; node+=blockDim.x)                    // Assign each thread to a node to populate
     {
-      if (q >= num_of_queries)
-      {
-        break;
-      }
-      
-      for (int tid = threadIdx.x; tid < num_of_features; tid+=blockDim.x)
-      {
-        query_space[(q-current_query)*num_of_features+tid] = queries[q*num_of_features+tid]; 
-      }
-      queries_loaded++;
+      subtree_space[(node*3)] = subtree_node_list[node*3];        //feature_id
+      subtree_space[(node*3)+1] = subtree_node_list[node*3+1];  //node_value
+      subtree_space[(node*3)+2] = subtree_node_list[node*3+2];  //is_node_leaf
     }
     __syncthreads();
+
+    // Traversal stage
+    for (int q_start = max_queries_loadable*blockIdx.x; q_start < num_of_queries; q_start+=max_queries_loadable*gridDim.x)
+    {
+      // Load queries into Shared Memory
     
-    for(int tree_num = 0; tree_num <num_of_trees; tree_num++){
-      //Load first subtree stage
-      unsigned tree_offset = prefix_sum_subtree_nums[tree_num];
-      float *subtree_node_list = nodes + g_subtree_nodes_offset[tree_offset]*3 ; //Index into subtree node start
-      int subtree_boundary = leaf_idx_boundry[tree_offset];
-
-      
-
-      for (int node = threadIdx.x; node < subtree_boundary+subtree_boundary+2; node+=blockDim.x)                    // Assign each thread to a node to populate
+      for (int q = 0; q < max_queries_loadable; q++)
       {
-        subtree_space[(node*3)] = subtree_node_list[node*3];        //feature_id
-        subtree_space[(node*3)+1] = subtree_node_list[node*3+1];  //node_value
-        subtree_space[(node*3)+2] = subtree_node_list[node*3+2];  //is_node_leaf
+        for (int f = threadIdx.x; f < num_of_features; f++)
+        {
+          query_space[q*num_of_features+f] = queries + ((q_start+q)*num_of_features)+f;
+        }
+        __syncthreads();
       }
-      __syncthreads();
-      
-      // Traversal stage
-      for (int tid = current_query+threadIdx.x; tid < current_query+queries_loaded; tid+=blockDim.x)
+      for (int tid = q_start+threadIdx.x; tid < q_start+max_queries_loadable; tid+=blockDim.x)
       {
-        float *row = query_space + (tid-current_query)*num_of_features;
-        // float *row = queries + tid*num_of_features;
+        float *row = query_space + (tid - q_start)*num_of_features;
 
-        //iterate over nodes in a subtree
+      //iterate over nodes in a subtree
         bool return_from_curr_tree = false;
 
         unsigned curr_subtree_idx = 0 ;  
@@ -173,9 +166,7 @@ hier_kernel(
       __syncthreads();
     }
     __syncthreads();
-    current_query+=gridDim.x*blockDim.x;
   }
-  
 
 }
 #endif
@@ -578,7 +569,7 @@ int main(){
   //reset result array to 0
   cudaMemset(d_results, 0 , row*sizeof(unsigned));
   START_TIMER
-  hier_kernel<<<80,64>>>(
+  hier_kernel<<<80,256>>>(
                           num_of_trees                     ,
                           d_prefix_sum_subtree_nums        ,
                           d_nodes                          ,
@@ -592,7 +583,7 @@ int main(){
                           d_queries                        ,
                           d_results                  
   );
-  generate_results<<<80,64>>>(row, num_of_trees, d_results);
+  generate_results<<<80,256>>>(row, num_of_trees, d_results);
   cudaDeviceSynchronize();
   STOP_TIMER("hier kernel")
   cout << "Kernel returned:" << cudaGetErrorName(cudaGetLastError()) << endl;
