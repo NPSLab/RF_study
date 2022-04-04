@@ -65,7 +65,7 @@ hier_kernel(
   
   __shared__ float subtree_space[(int)(3*MAX_NODES_ST)];
   int max_queries_loadable = (RATIO_ST*SM_BYTES)/(sizeof(float)*num_of_features);
-  __shared__ float query_space[max_queries_loadable*num_of_features];
+  __shared__ float query_space[(int)(RATIO_ST*SM_BYTES)/(sizeof(float)];
   // __shared__ float subtree_space[(int)((RATIO_ST*SM_BYTES)/sizeof(float))];
   // int nodes_per_subtree = pow(2.0,max_subtree_depth) - 1;
   // int max_subtrees_loadable = (RATIO_ST*SM_BYTES)/(3*sizeof(float)*nodes_per_subtree);
