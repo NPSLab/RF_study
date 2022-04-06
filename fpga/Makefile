@@ -20,7 +20,7 @@
 
 help::
 	$(ECHO) "Makefile Usage:"
-	$(ECHO) "  make all TARGET=<sw_emu/hw_emu/hw> PLATFORM=<FPGA platform> HOST_ARCH=<aarch32/aarch64/x86> EDGE_COMMON_SW=<rootfs and kernel image path>"
+	$(ECHO) "  make all TARGET=<sw_emu/hw_emu/hw> PLATFORM=<FPGA platform> HOST_ARCH=<aarch32/aarch64/x86> EDGE_COMMON_SW=<rootfs and kernel image path> KERNEL=<name_of_kernel> SUBDEPTH=<max tree subdepth>"
 	$(ECHO) "      Command to generate the design for specified Target and Shell."
 	$(ECHO) ""
 	$(ECHO) "  make clean "
@@ -54,45 +54,115 @@ XF_PROJ_ROOT = $(shell readlink -f $(COMMON_REPO))
 
 TARGET := hw
 HOST_ARCH := x86
+KERNEL :=
+SUBDEPTH := 15
+NAME :=
+CONFIG :=
+TREEFILE :=
+INPUTFILE :=
+BATCH := 0
+NUM_SLRS := 1
+MODE := FPGA_HIER
+KERNEL_NAME := hier_kernel
+SPLIT := 0
+ifeq ($(MODE), FPGA_CSR)
+	KERNEL_NAME := csr_kernel
+endif
+ifeq ($(SPLIT), 1)
+	KERNEL_NAME_BURST := hier_kernel_burst
+endif
+ifneq ($(NUM_SLRS), 1)
+	NAME := $(KERNEL)_sd$(SUBDEPTH)_slr$(NUM_SLRS)
+	CONFIG :=u250_four_slr.cfg
+else
+	NAME := $(KERNEL)_sd$(SUBDEPTH)
+	CONFIG :=u250.cfg
+endif
+NUM_CUS := 1
+ifeq ($(NUM_CUS), 8)
+	NAME := $(KERNEL)_sd$(SUBDEPTH)_slr$(NUM_SLRS)_cu$(NUM_CUS)
+	CONFIG := u250_four_slr_eight_units.cfg
+endif
+ifeq ($(NUM_CUS), 10)
+	ifeq ($(SPLIT), 1)
+			CONFIG := u250_four_slr_ten_units_split.cfg
+			NAME := $(KERNEL)_sd$(SUBDEPTH)_slr$(NUM_SLRS)_cu$(NUM_CUS)
+	endif
+endif
+ifeq ($(NUM_CUS), 12)
+		NAME := $(KERNEL)_sd$(SUBDEPTH)_slr$(NUM_SLRS)_cu$(NUM_CUS)
+		CONFIG := u250_four_slr_twelve_units.cfg
+endif
+ifeq ($(NUM_CUS), 13)
+	NAME := $(KERNEL)_sd$(SUBDEPTH)_slr$(NUM_SLRS)_cu$(NUM_CUS)
+	CONFIG := u250_four_slr_thirteen_units.cfg
+endif
+ifeq ($(NUM_CUS), 14)
+	NAME := $(KERNEL)_sd$(SUBDEPTH)_slr$(NUM_SLRS)_cu$(NUM_CUS)
+	CONFIG := u250_four_slr_fourteen_units.cfg
+endif
+ifeq ($(NUM_CUS), 15)
+	NAME := $(KERNEL)_sd$(SUBDEPTH)_slr$(NUM_SLRS)_cu$(NUM_CUS)
+	CONFIG := u250_four_slr_fifteen_units.cfg
+endif
 
 include ./utils.mk
 
-XSA := 
+XSA :=
 ifneq ($(PLATFORM), )
 XSA := $(call device2xsa, $(PLATFORM))
 endif
-TEMP_DIR := ./_x.$(TARGET).$(XSA)
+TEMP_DIR := ./_x.$(TARGET).$(XSA).$(NAME)
 BUILD_DIR := ./build_dir.$(TARGET).$(XSA)
 
+# SoC variables
+RUN_APP_SCRIPT = ./run_app.sh
+PACKAGE_OUT = ./package.$(TARGET)
+
+LAUNCH_EMULATOR = $(PACKAGE_OUT)/launch_$(TARGET).sh
+RESULT_STRING = TEST PASSED
+
 VPP := v++
-VPP_PFLAGS := 
-CMD_ARGS = $(BUILD_DIR)/rf_kernels.xclbin
+VPP_PFLAGS :=
+CMD_ARGS = $(BUILD_DIR)/$(NAME).xclbin $(TREEFILE) $(INPUTFILE)
 
 include $(XF_PROJ_ROOT)/common/includes/opencl/opencl.mk
-CXXFLAGS += $(opencl_CXXFLAGS) -Wall -O3 -g -std=c++11 -DFPGA_HIER -DITER
+CXXFLAGS += $(opencl_CXXFLAGS) -Wall -O3 -g -std=c++11 -D$(MODE) -DITER -DNUM_SLRS=$(NUM_SLRS) -DNUM_CUS=$(NUM_CUS) -DSPLIT=$(SPLIT)
+ifeq ($(BATCH), 1)
+	CXXFLAGS += -DBATCH
+endif
 LDFLAGS += $(opencl_LDFLAGS)
 
 ############################## Setting up Host Variables ##############################
 #Include Required Host Source Files
 CXXFLAGS += -I$(XF_PROJ_ROOT)/common/includes/xcl2
-HOST_SRCS += $(XF_PROJ_ROOT)/common/includes/xcl2/xcl2.cpp ./src/host.cpp 
+HOST_SRCS += $(XF_PROJ_ROOT)/common/includes/xcl2/xcl2.cpp ./fpga_host.cpp
 # Host compiler global settings
 CXXFLAGS += -fmessage-length=0
-LDFLAGS += -lrt -lstdc++ 
+LDFLAGS += -lrt -lstdc++
 
 ############################## Setting up Kernel Variables ##############################
 # Kernel compiler global settings
-VPP_FLAGS += -t $(TARGET) --platform $(PLATFORM) --save-temps -DFPGA_HIER -DITER --hls.pre_tcl $(XF_PROJ_ROOT)/common/utility/hls_config.tcl
+VPP_FLAGS += -t $(TARGET) --platform $(PLATFORM) --save-temps -D$(MODE) -DITER -DMAX_SUBDEPTH=$(SUBDEPTH)
 ifneq ($(TARGET), hw)
 	VPP_FLAGS += -g
+else
+	VPP_FLAGS += --hls.pre_tcl $(XF_PROJ_ROOT)/common/utility/hls_config.tcl
+endif
+
+ifeq ($(TARGET), hw_emu)
+	VPP_FLAGS += --hls.pre_tcl $(XF_PROJ_ROOT)/common/utility/hls_config.tcl
 endif
 
 EXECUTABLE = ./fpga_hier_iter
 EMCONFIG_DIR = $(TEMP_DIR)
 
 ############################## Declaring Binary Containers ##############################
-BINARY_CONTAINERS += $(BUILD_DIR)/rf_tree.xclbin
-BINARY_CONTAINER_rf_tree_OBJS += $(TEMP_DIR)/rf_tree.xo
+BINARY_CONTAINERS += $(BUILD_DIR)/$(NAME).xclbin
+BINARY_CONTAINER_KERNEL_OBJS += $(TEMP_DIR)/hier_kernel.xo
+ifeq ($(SPLIT), 1)
+	BINARY_CONTAINER_KERNEL_OBJS += $(TEMP_DIR)/hier_kernel_burst.xo
+endif
 
 ############################## Setting Targets ##############################
 CP = cp -rf
@@ -110,16 +180,19 @@ build: check-vitis check-device $(BINARY_CONTAINERS)
 xclbin: build
 
 ############################## Setting Rules for Binary Containers (Building Kernels) ##############################
-$(TEMP_DIR)/vector_add.xo: src/vector_addition.cl
+$(TEMP_DIR)/hier_kernel_burst.xo: $(KERNEL)_copy.cpp
 	mkdir -p $(TEMP_DIR)
-	$(VPP) $(VPP_FLAGS) -c -k vector_add --temp_dir $(TEMP_DIR)  -I'$(<D)' -o'$@' '$<'
-$(BUILD_DIR)/vector_addition.xclbin: $(BINARY_CONTAINER_vector_addition_OBJS)
+	$(VPP) $(VPP_FLAGS) -c -k $(KERNEL_NAME_BURST) --temp_dir $(TEMP_DIR)  -I'$(<D)' -o'$@' '$<'
+$(TEMP_DIR)/hier_kernel.xo: $(KERNEL).cpp
+	mkdir -p $(TEMP_DIR)
+	$(VPP) $(VPP_FLAGS) -c -k $(KERNEL_NAME) --temp_dir $(TEMP_DIR)  -I'$(<D)' -o'$@' '$<'
+$(BUILD_DIR)/$(NAME).xclbin: $(BINARY_CONTAINER_KERNEL_OBJS)
 	mkdir -p $(BUILD_DIR)
 ifeq ($(HOST_ARCH), x86)
-	$(VPP) $(VPP_FLAGS) -l $(VPP_LDFLAGS) --temp_dir $(TEMP_DIR) -o'$(BUILD_DIR)/vector_addition.link.xclbin' $(+)
-	$(VPP) -p $(BUILD_DIR)/vector_addition.link.xclbin -t $(TARGET) --platform $(PLATFORM) --package.out_dir $(PACKAGE_OUT) -o $(BUILD_DIR)/vector_addition.xclbin
+	$(VPP) $(VPP_FLAGS) -l $(VPP_LDFLAGS) --temp_dir $(TEMP_DIR) --config $(CONFIG) -o'$(BUILD_DIR)/$(NAME).link.xclbin' $(+)
+	$(VPP) -p $(BUILD_DIR)/$(NAME).link.xclbin -t $(TARGET) --platform $(PLATFORM) --package.out_dir $(PACKAGE_OUT) -o $(BUILD_DIR)/$(NAME).xclbin
 else
-	$(VPP) $(VPP_FLAGS) -l $(VPP_LDFLAGS) --temp_dir $(TEMP_DIR) -o'$(BUILD_DIR)/vector_addition.xclbin' $(+)
+	$(VPP) $(VPP_FLAGS) -l $(VPP_LDFLAGS) --temp_dir $(TEMP_DIR) -o'$(BUILD_DIR)/$(NAME).xclbin' $(+)
 endif
 
 ############################## Setting Rules for Host (Building Host Executable) ##############################
@@ -166,24 +239,18 @@ endif
 ############################## Preparing sdcard ##############################
 sd_card: $(BINARY_CONTAINERS) $(EXECUTABLE) gen_run_app
 ifneq ($(HOST_ARCH), x86)
-	$(VPP) $(VPP_PFLAGS) -p $(BUILD_DIR)/vector_addition.xclbin -t $(TARGET) --platform $(PLATFORM) --package.out_dir $(PACKAGE_OUT) --package.rootfs $(EDGE_COMMON_SW)/rootfs.ext4 --package.sd_file $(SD_IMAGE_FILE) --package.sd_file xrt.ini --package.sd_file $(RUN_APP_SCRIPT) --package.sd_file $(EXECUTABLE) -o vector_addition.xclbin
+	$(VPP) $(VPP_PFLAGS) -p $(BUILD_DIR)/$(NAME).xclbin -t $(TARGET) --platform $(PLATFORM) --package.out_dir $(PACKAGE_OUT) --package.rootfs $(EDGE_COMMON_SW)/rootfs.ext4 --package.sd_file $(SD_IMAGE_FILE) --package.sd_file xrt.ini --package.sd_file $(RUN_APP_SCRIPT) --package.sd_file $(EXECUTABLE) -o $(NAME).xclbin
 endif
 
 ############################## Cleaning Rules ##############################
 # Cleaning stuff
 clean:
-	-$(RMDIR) $(EXECUTABLE) $(XCLBIN)/{*sw_emu*,*hw_emu*} 
-	-$(RMDIR) profile_* TempConfig system_estimate.xtxt *.rpt *.csv 
+	-$(RMDIR) $(EXECUTABLE) $(XCLBIN)/{*sw_emu*,*hw_emu*}
+	-$(RMDIR) profile_* TempConfig system_estimate.xtxt *.rpt *.csv
 	-$(RMDIR) src/*.ll *v++* .Xil emconfig.json dltmp* xmltmp* *.log *.jou *.wcfg *.wdb
 
 cleanall: clean
 	-$(RMDIR) build_dir* sd_card*
 	-$(RMDIR) package.*
 	-$(RMDIR) _x* *xclbin.run_summary qemu-memory-_* emulation _vimage pl* start_simulation.sh *.xclbin
-
-# Compile Xilinx object file
-v++ -t hw --config ../../u250.cfg -c ./kernels.cl -o ripples_kernels.xo --include /usr/include/ --hls.pre_tcl ../../hls_config.tcl
-
-# Compile Xilinx device binary file
-v++ -t hw --config ../../u250.cfg -l ripples_kernels.xo -o ripples_kernels.xclbin --hls.pre_tcl ../../hls_config.tcl
 

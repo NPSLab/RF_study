@@ -4,6 +4,7 @@
 #include <vector>
 #include <chrono>
 #include <unistd.h>
+#include "xcl2.hpp"
 
 #define TIMING
 
@@ -17,39 +18,58 @@
 #define STOP_TIMER(name)
 #endif
 
+#ifdef BATCH
+typedef struct {
+   unsigned short query_results;
+   unsigned int query_curr_subtree;
+   unsigned int query_data_buf;
+} query_t;
+#endif
+
+
 template <typename T>
-unsigned read_arr(ifstream &infile, vector<T> &output, string var_name);
+unsigned read_arr(std::ifstream &infile, std::vector<T, aligned_allocator<T>> &output, std::string var_name);
 template <typename T>
-void read_2darr(ifstream &infile, vector<T> &output, string var_name, unsigned &row, unsigned &cow);
+void read_2darr(std::ifstream &infile, std::vector<T, aligned_allocator<T>> &output, std::string var_name, unsigned &row, unsigned &cow);
 
 float predict_tree_csr_layout(unsigned *node_list, unsigned *edge_list, unsigned *node_is_leaf, unsigned *node_features, float *node_values, float *row);
 
-float predict_tree_gpu_layout(int num_of_trees, const unsigned *prefix_sum_subtree_nums, const float *nodes, const unsigned *idx_to_subtree, const unsigned *leaf_idx_boundry, const unsigned *g_subtree_nodes_offset, const unsigned *g_subtree_idx_to_subtree_offset, unsigned tree_num, float *row);
+float predict_tree_fpga_layout(int num_of_trees, const unsigned *prefix_sum_subtree_nums, const float *nodes, const unsigned *idx_to_subtree, const unsigned *leaf_idx_boundry, const unsigned *g_subtree_nodes_offset, const unsigned *g_subtree_idx_to_subtree_offset, unsigned tree_num, float *row);
 
-int main()
+int main(int argc, char** argv)
 {
 
+    std::string binaryFile = argv[1];
+    std::string treeFile = argv[2];
+    std::string inputFile = argv[3];
+
     // common data used by both csr and hier versions of FPGA kernels
-    ifstream infile;
+    std::ifstream infile;
     unsigned num_of_trees;
     INIT_TIMER
     unsigned wrong_num = 0;
     cl_int err;
     cl::CommandQueue q;
-    cl::Kernel rf_kernel, generate_results_kernel;
+    std::vector<cl::Kernel> rf_kernel(NUM_SLRS*NUM_CUS);
+    #if SPLIT
+        std::vector<cl::Kernel> rf_kernel_burst(NUM_SLRS);
+    #endif
+    // cl::Kernel generate_results_kernel;
     cl::Context context;
 
     auto devices = xcl::get_xil_devices();
 
     auto fileBuf = xcl::read_binary_file(binaryFile);
     cl::Program::Binaries bins{{fileBuf.data(), fileBuf.size()}};
+
+
     bool valid_device = false;
     for (unsigned int i = 0; i < devices.size(); i++)
     {
         auto device = devices[i];
         // Creating Context and Command Queue for selected Device
         OCL_CHECK(err, context = cl::Context(device, nullptr, nullptr, nullptr, &err));
-        OCL_CHECK(err, q = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err));
+        OCL_CHECK(err, q = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, &err));
 
         std::cout << "Trying to program device[" << i << "]: " << device.getInfo<CL_DEVICE_NAME>() << std::endl;
         cl::Program program(context, {device}, bins, nullptr, &err);
@@ -63,8 +83,45 @@ int main()
             // This call will extract a kernel out of the program we loaded in the
             // previous line. A kernel is an OpenCL function that is executed on the
             // FPGA. This function is defined in the src/vetor_addition.cl file.
-            OCL_CHECK(err, rf_kernel = cl::Kernel(program, "hier_kernel", &err));
-            OCL_CHECK(err, generate_results_kernel = cl::Kernel(program, "generate_results", &err));
+            for(int i = 0; i < NUM_SLRS * NUM_CUS; i++){
+                std::string strnum = std::to_string(i);
+                #ifdef FPGA_CSR
+                std::string base_name = "csr_kernel:{csr_kernel_";
+                std::string total_name = base_name + strnum + "}";
+                std::cout << "Retrieving " << total_name << std::endl;
+                if(NUM_SLRS == 1) total_name = "csr_kernel";
+                #endif
+                #ifdef FPGA_HIER
+                std::string base_name = "hier_kernel:{hier_kernel_";
+                std::string total_name = base_name + strnum + "}";
+                std::cout << "Retrieving " << total_name << std::endl;
+                if(NUM_SLRS == 1) total_name = "hier_kernel";
+                #endif
+                cl::Kernel temp;
+                OCL_CHECK(err, temp = cl::Kernel(program, total_name.c_str(), &err));
+                rf_kernel[i] = temp;
+            }
+            #if SPLIT
+                for(int i = 0; i < NUM_SLRS; i++){
+                std::string strnum = std::to_string(i);
+                #ifdef FPGA_CSR
+                std::string base_name = "csr_kernel_burst:{csr_kernel_burst_";
+                std::string total_name = base_name + strnum + "}";
+                std::cout << "Retrieving " << total_name << std::endl;
+                if(NUM_SLRS == 1) total_name = "csr_kernel_burst_";
+                #endif
+                #ifdef FPGA_HIER
+                std::string base_name = "hier_kernel_burst:{hier_kernel_burst_";
+                std::string total_name = base_name + strnum + "}";
+                std::cout << "Retrieving " << total_name << std::endl;
+                if(NUM_SLRS == 1) total_name = "hier_kernel_burst";
+                #endif
+                cl::Kernel temp;
+                OCL_CHECK(err, temp = cl::Kernel(program, total_name.c_str(), &err));
+                rf_kernel_burst[i] = temp;
+            }
+            #endif
+            // OCL_CHECK(err, generate_results_kernel = cl::Kernel(program, "generate_results", &err));
             valid_device = true;
             break; // we break because we found a valid device
         }
@@ -76,97 +133,97 @@ int main()
 
 #ifdef FPGA_HIER
     // read HIER data
-    infile.open("treefile_hier.txt");
-    string str;
+    infile.open(treeFile);
+    std::string str;
     char c;
     infile >> str;
-    if (str != string("num_of_trees"))
+    if (str != std::string("num_of_trees"))
     {
-        cout << str << "error reading num_of_trees";
+        std::cout << str << "error reading num_of_trees";
     }
     infile >> num_of_trees >> c;
-    cout << str << "\n"
+    std::cout << str << "\n"
          << num_of_trees << "\n";
     infile >> str;
-    if (str != string("prefix_sum_subtree_nums"))
+    if (str != std::string("prefix_sum_subtree_nums"))
     {
-        cout << str << "error reading prefix_sum_subtree_nums";
+        std::cout << str << "error reading prefix_sum_subtree_nums";
     }
     unsigned len_prefix_sum_subtree_nums;
     infile >> len_prefix_sum_subtree_nums >> c;
-    cout << str << "\n"
+    std::cout << str << "\n"
          << len_prefix_sum_subtree_nums << "\n";
-    vector<unsigned, aligned_allocator<unsigned>> prefix_sum_subtree_nums(len_prefix_sum_subtree_nums, 0);
+    std::vector<unsigned, aligned_allocator<unsigned>> prefix_sum_subtree_nums(len_prefix_sum_subtree_nums, 0);
     for (unsigned i = 0; i < len_prefix_sum_subtree_nums; ++i)
     {
         infile >> prefix_sum_subtree_nums[i] >> c;
     }
     infile >> str;
-    if (str != string("nodes"))
+    if (str != std::string("nodes"))
     {
-        cout << str << "error reading nodes";
+        std::cout << str << "error reading nodes";
     }
     unsigned len_nodes;
     infile >> len_nodes >> c;
-    cout << str << "\n"
+    std::cout << str << "\n"
          << len_nodes << "\n";
-    vector<float, aligned_allocator<float> > nodes(len_nodes);
+    std::vector<float, aligned_allocator<float> > nodes(len_nodes);
     for (unsigned i = 0; i < len_nodes; ++i)
     {
         infile >> nodes[i] >> c;
     }
     infile >> str;
-    if (str != string("idx_to_subtree"))
+    if (str != std::string("idx_to_subtree"))
     {
-        cout << str << "error reading idx_to_subtree";
+        std::cout << str << "error reading idx_to_subtree";
     }
     unsigned len_idx_to_subtree;
     infile >> len_idx_to_subtree >> c;
-    cout << str << "\n"
+    std::cout << str << "\n"
          << len_idx_to_subtree << "\n";
-    vector<unsigned, aligned_allocator<unsigned> > idx_to_subtree(len_idx_to_subtree, 0);
+    std::vector<unsigned, aligned_allocator<unsigned> > idx_to_subtree(len_idx_to_subtree, 0);
     for (unsigned i = 0; i < len_idx_to_subtree; ++i)
     {
         infile >> idx_to_subtree[i] >> c;
     }
     infile >> str;
-    if (str != string("leaf_idx_boundry"))
+    if (str != std::string("leaf_idx_boundry"))
     {
-        cout << str << "error reading leaf_idx_boundry";
+        std::cout << str << "error reading leaf_idx_boundry";
     }
     unsigned len_leaf_idx_boundry;
     infile >> len_leaf_idx_boundry >> c;
-    cout << str << "\n"
+    std::cout << str << "\n"
          << len_leaf_idx_boundry << "\n";
-    vector<unsigned, aligned_allocator<unsigned> > leaf_idx_boundry(len_leaf_idx_boundry, 0);
+    std::vector<unsigned, aligned_allocator<unsigned> > leaf_idx_boundry(len_leaf_idx_boundry, 0);
     for (unsigned i = 0; i < len_leaf_idx_boundry; ++i)
     {
         infile >> leaf_idx_boundry[i] >> c;
     }
     infile >> str;
-    if (str != string("g_subtree_nodes_offset"))
+    if (str != std::string("g_subtree_nodes_offset"))
     {
-        cout << str << "error reading g_subtree_nodes_offset";
+        std::cout << str << "error reading g_subtree_nodes_offset";
     }
     unsigned len_g_subtree_nodes_offset;
     infile >> len_g_subtree_nodes_offset >> c;
-    cout << str << "\n"
+    std::cout << str << "\n"
          << len_g_subtree_nodes_offset << "\n";
-    vector<unsigned, aligned_allocator<unsigned> > g_subtree_nodes_offset(len_g_subtree_nodes_offset, 0);
+    std::vector<unsigned, aligned_allocator<unsigned> > g_subtree_nodes_offset(len_g_subtree_nodes_offset, 0);
     for (unsigned i = 0; i < len_g_subtree_nodes_offset; ++i)
     {
         infile >> g_subtree_nodes_offset[i] >> c;
     }
     infile >> str;
-    if (str != string("g_subtree_idx_to_subtree_offset"))
+    if (str != std::string("g_subtree_idx_to_subtree_offset"))
     {
-        cout << str << "error reading g_subtree_idx_to_subtree_offset";
+        std::cout << str << "error reading g_subtree_idx_to_subtree_offset";
     }
     unsigned len_g_subtree_idx_to_subtree_offset;
     infile >> len_g_subtree_idx_to_subtree_offset >> c;
-    cout << str << "\n"
+    std::cout << str << "\n"
          << len_g_subtree_idx_to_subtree_offset << "\n";
-    vector<unsigned, aligned_allocator<unsigned> > g_subtree_idx_to_subtree_offset(len_g_subtree_idx_to_subtree_offset, 0);
+    std::vector<unsigned, aligned_allocator<unsigned> > g_subtree_idx_to_subtree_offset(len_g_subtree_idx_to_subtree_offset, 0);
     for (unsigned i = 0; i < len_g_subtree_idx_to_subtree_offset; ++i)
     {
         float tmp;
@@ -177,145 +234,325 @@ int main()
 #endif
 
 #ifdef FPGA_CSR
-    // read CSR data
-    infile.open("treefile_csr.txt");
-    vector<unsigned, aligned_allocator<unsigned> > node_list_idx;
-    vector<unsigned, aligned_allocator<unsigned> > edge_list_idx;
-    vector<unsigned, aligned_allocator<unsigned> > node_is_leaf_idx;
-    vector<unsigned, aligned_allocator<unsigned> > node_features_idx;
-    vector<unsigned, aligned_allocator<unsigned> > node_values_idx;
-    vector<unsigned, aligned_allocator<unsigned> > node_list_total;
-    vector<unsigned, aligned_allocator<unsigned> > edge_list_total;
-    vector<unsigned, aligned_allocator<unsigned> > node_is_leaf_total;
-    vector<unsigned, aligned_allocator<unsigned> > node_features_total;
-    vector<float, aligned_allocator<float> > node_values_total;
-    num_of_trees = read_arr(infile, node_list_idx, "node_list_idx");
-    // read_arr returns size of array being read, size of node_list_idx = num_of_trees + 1
-    num_of_trees = num_of_trees - 1;
-    read_arr(infile, edge_list_idx, "edge_list_idx");
-    read_arr(infile, node_is_leaf_idx, "node_is_leaf_idx");
-    read_arr(infile, node_features_idx, "node_features_idx");
-    read_arr(infile, node_values_idx, "node_values_idx");
-    read_arr(infile, node_list_total, "node_list_total");
-    read_arr(infile, edge_list_total, "edge_list_total");
-    read_arr(infile, node_is_leaf_total, "node_is_leaf_total");
-    read_arr(infile, node_features_total, "node_features_total");
-    read_arr(infile, node_values_total, "node_values_total");
-    infile.close();
+  //read CSR data
+  infile.open(treeFile);
+  std::vector<unsigned, aligned_allocator<unsigned>>   node_list_idx      ; 
+  std::vector<unsigned, aligned_allocator<unsigned>>   edge_list_idx      ;
+  std::vector<unsigned, aligned_allocator<unsigned>>   node_is_leaf_idx   ;
+  std::vector<unsigned, aligned_allocator<unsigned>>   node_features_idx  ;
+  std::vector<unsigned, aligned_allocator<unsigned>>   node_values_idx    ;
+  std::vector<unsigned, aligned_allocator<unsigned>>   node_list_total    ;
+  std::vector<unsigned, aligned_allocator<unsigned>>   edge_list_total    ;
+  std::vector<unsigned, aligned_allocator<unsigned>>   node_is_leaf_total ;
+  std::vector<unsigned, aligned_allocator<unsigned>>   node_features_total;
+  std::vector<float, aligned_allocator<float>>   node_values_total  ;
+  num_of_trees = read_arr(infile, node_list_idx          , "node_list_idx"         );
+  //read_arr returns size of array being read, size of node_list_idx = num_of_trees + 1
+  num_of_trees = num_of_trees - 1;
+  read_arr(infile, edge_list_idx          , "edge_list_idx"         );
+  read_arr(infile, node_is_leaf_idx       , "node_is_leaf_idx"      );
+  read_arr(infile, node_features_idx      , "node_features_idx"     );
+  read_arr(infile, node_values_idx        , "node_values_idx"       );
+  read_arr(infile, node_list_total        , "node_list_total"       );
+  read_arr(infile, edge_list_total        , "edge_list_total"       );
+  read_arr(infile, node_is_leaf_total     , "node_is_leaf_total"    );
+  read_arr(infile, node_features_total    , "node_features_total"   );
+  read_arr(infile, node_values_total      , "node_values_total"     );
+  infile.close();
 #endif
 
     // read input data
-    infile.open("./tree_input.txt");
-    vector<float, aligned_allocator<float> > X_test;
-    vector<float, aligned_allocator<float> > y_test;
+    infile.open(inputFile);
+    std::vector<float, aligned_allocator<float> > X_test;
+    std::vector<float, aligned_allocator<float> > y_test;
     unsigned row, col;
     read_2darr(infile, X_test, "X_test", row, col);
-    cout << "X_test"
+    std::cout << "X_test"
          << " with " << row << " rows"
          << " and " << col << " cols.\n";
     read_arr(infile, y_test, "y_test");
     infile.close();
 
-    vector<unsigned, aligned_allocator<unsigned> > h_results(row, 0);
+    std::vector<std::vector<unsigned, aligned_allocator<unsigned> >> h_results;
+
+    for(int i = 0; i < NUM_SLRS; i++){
+        size_t size;
+        if(i < NUM_SLRS-1) size = row/NUM_SLRS;
+        else size = (row / NUM_SLRS) + (row % NUM_SLRS);
+        std::vector<unsigned, aligned_allocator<unsigned> > result(size, 0);
+        h_results.push_back(result);
+    }
+
+    std::vector<float, aligned_allocator<float>> X_partitioned[NUM_SLRS];
+
+    for (int i = 0; i < NUM_SLRS; ++i)
+    {
+        size_t size = (row/NUM_SLRS) * col;
+        size_t end_size;
+        if(i < NUM_SLRS - 1){
+            end_size = size;
+        }
+        else{
+            end_size = size + (row % NUM_SLRS) * col;
+        }
+        // get range for the next set of `n` elements
+        auto start_itr = std::next(X_test.cbegin(), i*size);
+        auto end_itr = std::next(X_test.cbegin(), i*size + end_size);
+ 
+        // allocate memory for the sub-vector
+        X_partitioned[i].resize(end_size);
+ 
+        // copy elements from the input range to the sub-vector
+        std::copy(start_itr, end_itr, X_partitioned[i].begin());
+        std::cout << "X_partition[" << i << "] size = " << X_partitioned[i].size() << std::endl;
+    }
 
     // NOW we allocate input and output to/on FPGA
 
-    OCL_CHECK(err, cl::Buffer d_queries(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(float) * row * col, X_test.data(), &err));
-    OCL_CHECK(err, cl::Buffer d_results(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_WRITE, sizeof(unsigned) * row, h_results.data(), &err));
+    cl_mem_ext_ptr_t queries_alloc[NUM_SLRS];
+    std::vector<cl::Buffer> d_queries;
+
+    for(int i = 0; i < NUM_SLRS; i++){
+        unsigned num_queries;
+        if(i < NUM_SLRS-1) num_queries = row/NUM_SLRS;
+        else num_queries = (row / NUM_SLRS) + (row % NUM_SLRS);
+        queries_alloc[i].flags = i | XCL_MEM_TOPOLOGY; // DDR[i]
+        queries_alloc[i].param = 0;
+        queries_alloc[i].obj   = X_partitioned[i].data();
+        OCL_CHECK(err, cl::Buffer d_queries_temp(context, CL_MEM_USE_HOST_PTR | CL_MEM_EXT_PTR_XILINX | CL_MEM_READ_ONLY, sizeof(float) * num_queries * col, &queries_alloc[i], &err));
+        d_queries.push_back(d_queries_temp);
+    }
+
+    cl_mem_ext_ptr_t results_alloc[NUM_SLRS];  // Declaring extensions for multiple SLR buffers
+    std::vector<cl::Buffer> d_results;
+
+    for(int i = 0; i < NUM_SLRS; i++){
+        results_alloc[i].flags = i | XCL_MEM_TOPOLOGY; // DDR[i]
+        results_alloc[i].param = 0;
+        results_alloc[i].obj   = h_results[i].data();
+        OCL_CHECK(err, cl::Buffer d_results_temp(context, CL_MEM_USE_HOST_PTR | CL_MEM_EXT_PTR_XILINX | CL_MEM_READ_WRITE, sizeof(float) * h_results[i].size(), &results_alloc[i], &err));
+        d_results.push_back(d_results_temp);
+    }
+
+    // OCL_CHECK(err, cl::Buffer d_queries(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(float) * row * col, X_test.data(), &err));
+    // OCL_CHECK(err, cl::Buffer d_results(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_WRITE, sizeof(unsigned) * row, h_results.data(), &err));
 
 #ifdef FPGA_CSR
-    cout << "Allocating csr data on FPGA" << endl;
+  std::cout << "Allocating csr data on FPGA" << std::endl;
 
-    // NOW we have and need to copy these consolidated csr format to FPGA
-    cout << "Copying csr data to FPGA" << endl;
+//NOW we have and need to copy these consolidated csr format to GPU 
+  std::cout << "Copying csr data to FPGA" << std::endl;
+  // unsigned num_of_trees;
+  //vector<unsigned>   node_list_idx      ; 
+  //vector<unsigned>   edge_list_idx      ;
+  //vector<unsigned>   node_is_leaf_idx   ;
+  //vector<unsigned>   node_features_idx  ;
+  //vector<unsigned>   node_values_idx    ;
 
-    unsigned *d_node_list_idx;
-    unsigned *d_edge_list_idx;
-    unsigned *d_node_is_leaf_idx;
-    unsigned *d_node_features_idx;
-    unsigned *d_node_values_idx;
+  //vector<unsigned>   node_list_total    ;
+  //vector<unsigned>   edge_list_total    ;
+  //vector<unsigned>   node_is_leaf_total ;
+  //vector<unsigned>   node_features_total;
+  //vector<float>   node_values_total  ;
 
-    unsigned *d_node_list_total;
-    unsigned *d_edge_list_total;
-    unsigned *d_node_is_leaf_total;
-    unsigned *d_node_features_total; float *d_node_values_total;
+  cl_mem_ext_ptr_t d_node_list_idx_alloc[NUM_SLRS];
+  std::vector<cl::Buffer> d_node_list_idx;
+  for(int i = 0; i < NUM_SLRS; i++){
+      d_node_list_idx_alloc[i].flags = i | XCL_MEM_TOPOLOGY;
+      d_node_list_idx_alloc[i].param = 0;
+      d_node_list_idx_alloc[i].obj = node_list_idx.data();
+      OCL_CHECK(err, cl::Buffer d_node_list_idx_temp(context, CL_MEM_USE_HOST_PTR | CL_MEM_EXT_PTR_XILINX | CL_MEM_READ_ONLY, sizeof(unsigned) * node_list_idx.size(), &d_node_list_idx_alloc[i], &err));
+      d_node_list_idx.push_back(d_node_list_idx_temp);
+  }
+  cl_mem_ext_ptr_t d_edge_list_idx_alloc[NUM_SLRS];
+  std::vector<cl::Buffer> d_edge_list_idx;
+  for(int i = 0; i < NUM_SLRS; i++){
+      d_edge_list_idx_alloc[i].flags = i | XCL_MEM_TOPOLOGY;
+      d_edge_list_idx_alloc[i].param = 0;
+      d_edge_list_idx_alloc[i].obj = edge_list_idx.data();
+      OCL_CHECK(err, cl::Buffer d_edge_list_idx_temp(context, CL_MEM_USE_HOST_PTR | CL_MEM_EXT_PTR_XILINX | CL_MEM_READ_ONLY, sizeof(unsigned) * edge_list_idx.size(), &d_edge_list_idx_alloc[i], &err));
+      d_edge_list_idx.push_back(d_edge_list_idx_temp);
+  }
+  cl_mem_ext_ptr_t d_node_is_leaf_idx_alloc[NUM_SLRS];
+  std::vector<cl::Buffer> d_node_is_leaf_idx;
+  for(int i = 0; i < NUM_SLRS; i++){
+      d_node_is_leaf_idx_alloc[i].flags = i | XCL_MEM_TOPOLOGY;
+      d_node_is_leaf_idx_alloc[i].param = 0;
+      d_node_is_leaf_idx_alloc[i].obj = node_is_leaf_idx.data();
+      OCL_CHECK(err, cl::Buffer d_node_is_leaf_idx_temp(context, CL_MEM_USE_HOST_PTR | CL_MEM_EXT_PTR_XILINX | CL_MEM_READ_ONLY, sizeof(unsigned) * node_is_leaf_idx.size(), &d_node_is_leaf_idx_alloc[i], &err));
+      d_node_is_leaf_idx.push_back(d_node_is_leaf_idx_temp);
+  }
+  cl_mem_ext_ptr_t d_node_features_idx_alloc[NUM_SLRS];
+  std::vector<cl::Buffer> d_node_features_idx;
+  for(int i = 0; i < NUM_SLRS; i++){
+      d_node_features_idx_alloc[i].flags = i | XCL_MEM_TOPOLOGY;
+      d_node_features_idx_alloc[i].param = 0;
+      d_node_features_idx_alloc[i].obj = node_features_idx.data();
+      OCL_CHECK(err, cl::Buffer d_node_features_idx_temp(context, CL_MEM_USE_HOST_PTR | CL_MEM_EXT_PTR_XILINX | CL_MEM_READ_ONLY, sizeof(unsigned) * node_features_idx.size(), &d_node_features_idx_alloc[i], &err));
+      d_node_features_idx.push_back(d_node_features_idx_temp);
+  }
+  cl_mem_ext_ptr_t d_node_values_idx_alloc[NUM_SLRS];
+  std::vector<cl::Buffer> d_node_values_idx;
+  for(int i = 0; i < NUM_SLRS; i++){
+      d_node_values_idx_alloc[i].flags = i | XCL_MEM_TOPOLOGY;
+      d_node_values_idx_alloc[i].param = 0;
+      d_node_values_idx_alloc[i].obj = node_values_idx.data();
+      OCL_CHECK(err, cl::Buffer d_node_values_idx_temp(context, CL_MEM_USE_HOST_PTR | CL_MEM_EXT_PTR_XILINX | CL_MEM_READ_ONLY, sizeof(unsigned) * node_values_idx.size(), &d_node_values_idx_alloc[i], &err));
+      d_node_values_idx.push_back(d_node_values_idx_temp);
+  }
 
-    OCL_CHECK(err, cl::Buffer d_node_list_idx(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * node_list_idx.size(), node_list_idx.data(), &err));
-    OCL_CHECK(err, cl::Buffer d_edge_list_idx(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * edge_list_idx.size(), edge_list_idx.data(), &err));
-    OCL_CHECK(err, cl::Buffer d_node_is_leaf_idx(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * node_is_leaf_idx.size(), node_is_leaf_idx.data(), &err));
-    OCL_CHECK(err, cl::Buffer d_node_features_idx(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * node_features_idx.size(), node_features_idx.data(), &err));
-    OCL_CHECK(err, cl::Buffer d_node_values_idx(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * node_values_idx.size(), node_values_idx.data(), &err));
+  cl_mem_ext_ptr_t d_node_list_total_alloc[NUM_SLRS];
+  std::vector<cl::Buffer> d_node_list_total;
+  for(int i = 0; i < NUM_SLRS; i++){
+      d_node_list_total_alloc[i].flags = i | XCL_MEM_TOPOLOGY;
+      d_node_list_total_alloc[i].param = 0;
+      d_node_list_total_alloc[i].obj = node_list_total.data();
+      OCL_CHECK(err, cl::Buffer d_node_list_total_temp(context, CL_MEM_USE_HOST_PTR | CL_MEM_EXT_PTR_XILINX | CL_MEM_READ_ONLY, sizeof(unsigned) * node_list_total.size(), &d_node_list_total_alloc[i], &err));
+      d_node_list_total.push_back(d_node_list_total_temp);
+  }
+  cl_mem_ext_ptr_t d_edge_list_total_alloc[NUM_SLRS];
+  std::vector<cl::Buffer> d_edge_list_total;
+  for(int i = 0; i < NUM_SLRS; i++){
+      d_edge_list_total_alloc[i].flags = i | XCL_MEM_TOPOLOGY;
+      d_edge_list_total_alloc[i].param = 0;
+      d_edge_list_total_alloc[i].obj = edge_list_total.data();
+      OCL_CHECK(err, cl::Buffer d_edge_list_total_temp(context, CL_MEM_USE_HOST_PTR | CL_MEM_EXT_PTR_XILINX | CL_MEM_READ_ONLY, sizeof(unsigned) * edge_list_total.size(), &d_edge_list_total_alloc[i], &err));
+      d_edge_list_total.push_back(d_edge_list_total_temp);
+  }
+  cl_mem_ext_ptr_t d_node_is_leaf_total_alloc[NUM_SLRS];
+  std::vector<cl::Buffer> d_node_is_leaf_total;
+  for(int i = 0; i < NUM_SLRS; i++){
+      d_node_is_leaf_total_alloc[i].flags = i | XCL_MEM_TOPOLOGY;
+      d_node_is_leaf_total_alloc[i].param = 0;
+      d_node_is_leaf_total_alloc[i].obj = node_is_leaf_total.data();
+      OCL_CHECK(err, cl::Buffer d_node_is_leaf_total_temp(context, CL_MEM_USE_HOST_PTR | CL_MEM_EXT_PTR_XILINX | CL_MEM_READ_ONLY, sizeof(unsigned) * node_is_leaf_total.size(), &d_node_is_leaf_total_alloc[i], &err));
+      d_node_is_leaf_total.push_back(d_node_is_leaf_total_temp);
+  }
+  cl_mem_ext_ptr_t d_node_features_total_alloc[NUM_SLRS];
+  std::vector<cl::Buffer> d_node_features_total;
+  for(int i = 0; i < NUM_SLRS; i++){
+      d_node_features_total_alloc[i].flags = i | XCL_MEM_TOPOLOGY;
+      d_node_features_total_alloc[i].param = 0;
+      d_node_features_total_alloc[i].obj = node_features_total.data();
+      OCL_CHECK(err, cl::Buffer d_node_features_total_temp(context, CL_MEM_USE_HOST_PTR | CL_MEM_EXT_PTR_XILINX | CL_MEM_READ_ONLY, sizeof(unsigned) * node_features_total.size(), &d_node_features_total_alloc[i], &err));
+      d_node_features_total.push_back(d_node_features_total_temp);
+  }
+  cl_mem_ext_ptr_t d_node_values_total_alloc[NUM_SLRS];
+  std::vector<cl::Buffer> d_node_values_total;
+  for(int i = 0; i < NUM_SLRS; i++){
+      d_node_values_total_alloc[i].flags = i | XCL_MEM_TOPOLOGY;
+      d_node_values_total_alloc[i].param = 0;
+      d_node_values_total_alloc[i].obj = node_values_total.data();
+      OCL_CHECK(err, cl::Buffer d_node_values_total_temp(context, CL_MEM_USE_HOST_PTR | CL_MEM_EXT_PTR_XILINX | CL_MEM_READ_ONLY, sizeof(float) * node_values_total.size(), &d_node_values_total_alloc[i], &err));
+      d_node_values_total.push_back(d_node_values_total_temp);
+  }
 
-    OCL_CHECK(err, cl::Buffer d_node_list_total(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * node_list_total.size(), node_list_total.data(), &err));
-    OCL_CHECK(err, cl::Buffer d_edge_list_total(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * edge_list_total.size(), edge_list_total.data(), &err));
-    OCL_CHECK(err, cl::Buffer d_node_is_leaf_total(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * node_is_leaf_total.size(), node_is_leaf_total.data(), &err));
-    OCL_CHECK(err, cl::Buffer d_node_features_total(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * node_features_total.size(), node_features_total.data(), &err));
-    OCL_CHECK(err, cl::Buffer d_node_values_total(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * node_values_total.size(), node_values_total.data(), &err));
+  std::vector<cl::Event> write_event(NUM_SLRS);
 
-    cudaMemcpy(d_node_list_idx, node_list_idx.data(), sizeof(unsigned) * node_list_idx.size(), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_edge_list_idx, edge_list_idx.data(), sizeof(unsigned) * edge_list_idx.size(), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_node_is_leaf_idx, node_is_leaf_idx.data(), sizeof(unsigned) * node_is_leaf_idx.size(), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_node_features_idx, node_features_idx.data(), sizeof(unsigned) * node_features_idx.size(), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_node_values_idx, node_values_idx.data(), sizeof(unsigned) * node_values_idx.size(), cudaMemcpyHostToDevice);
+  for(int i = 0; i < NUM_SLRS; i++){
+    unsigned num_queries;
+    if(i < NUM_SLRS-1) num_queries = row/NUM_SLRS;
+    else num_queries = (row / NUM_SLRS) + (row % NUM_SLRS);
+    unsigned start = 0;
+    int narg = 0;
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, num_of_trees));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_node_list_idx[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_edge_list_idx[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_node_is_leaf_idx[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_node_features_idx[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_node_values_idx[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_node_list_total[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_edge_list_total[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_node_is_leaf_total[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_node_features_total[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_node_values_total[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, start));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, num_queries));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, col));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_queries[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_results[i]));
 
-    cudaMemcpy(d_node_list_total, node_list_total.data(), sizeof(unsigned) * node_list_total.size(), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_edge_list_total, edge_list_total.data(), sizeof(unsigned) * edge_list_total.size(), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_node_is_leaf_total, node_is_leaf_total.data(), sizeof(unsigned) * node_is_leaf_total.size(), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_node_features_total, node_features_total.data(), sizeof(unsigned) * node_features_total.size(), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_node_values_total, node_values_total.data(), sizeof(unsigned) * node_values_total.size(), cudaMemcpyHostToDevice);
+    std::cout << "Copying csr format to FPGA SLR " << i << std::endl;
+    OCL_CHECK(err, err = q.enqueueMigrateMemObjects({d_node_list_idx[i],
+                                                     d_edge_list_idx[i],
+                                                     d_node_is_leaf_idx[i],
+                                                     d_node_features_idx[i],
+                                                     d_node_values_idx[i],
+                                                     d_node_list_total[i],
+                                                     d_edge_list_total[i],
+                                                     d_node_is_leaf_total[i],
+                                                     d_node_features_total[i],
+                                                     d_node_values_total[i],
+                                                     d_queries[i],
+                                                     d_results[i]}, 0 /* 0 means from host*/,
+                                                    nullptr, &write_event[i]));
+}
 
-    cout << "Start executing csr format on FPGA" << endl;
-    cudaMemset(d_results, 0, row * sizeof(unsigned));
-    cout << cudaGetErrorName(cudaGetLastError()) << endl;
-    START_TIMER
-    csr_kernel<<<80, 256>>>(
-        num_of_trees,
-        d_node_list_idx,
-        d_edge_list_idx,
-        d_node_is_leaf_idx,
-        d_node_features_idx,
-        d_node_values_idx,
+std::vector<cl::Event> rf_event(NUM_SLRS*NUM_CUS);
 
-        d_node_list_total,
-        d_edge_list_total,
-        d_node_is_leaf_total,
-        d_node_features_total,
-        d_node_values_total,
+for(int i = 0; i < NUM_SLRS; i++){
+    int narg = 0; 
+    unsigned num_queries;
+    if(i < (NUM_SLRS-1)*NUM_CUS) num_queries = row/NUM_SLRS;
+    else num_queries = (row / NUM_SLRS) + (row % NUM_SLRS);
+    unsigned num_queries_per_cu = num_queries / NUM_CUS;
+    unsigned start = num_queries_per_cu * (i % NUM_CUS);
+    unsigned end;
+    if(i % NUM_CUS == NUM_CUS-1){
+        end = num_queries;
+    }
+    else{
+        end = num_queries_per_cu * ((i % NUM_CUS) + 1);
+    }
+    std::cout << i << " CU start is " << start << ", end is " << end << std::endl;
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, num_of_trees));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_node_list_idx[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_edge_list_idx[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_node_is_leaf_idx[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_node_features_idx[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_node_values_idx[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_node_list_total[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_edge_list_total[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_node_is_leaf_total[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_node_features_total[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_node_values_total[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, start));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, num_queries));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, col));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_queries[i]));
+    OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_results[i]));
+}
+START_TIMER
+for(int i = 0; i < NUM_SLRS * NUM_CUS; i++){
+    std::cout << "Start executing csr format on FPGA SLR" << i << std::endl;
+    OCL_CHECK(err, err = q.enqueueTask(rf_kernel[i], &write_event, &rf_event[i]));
+}
 
-        row,
-        col,
-        d_queries,
-        d_results);
-    generate_results<<<80, 256>>>(row, num_of_trees, d_results);
-    cudaDeviceSynchronize();
-    STOP_TIMER("csr kernel")
-    cout << "Kernel returned:" << cudaGetErrorName(cudaGetLastError()) << endl;
-    h_results.resize(row);
-    cudaMemcpy(h_results.data(), d_results, sizeof(unsigned) * row, cudaMemcpyDeviceToHost);
-    cudaDeviceSynchronize();
 
-    wrong_num = 0;
-    for (auto i = 0; i < row; ++i)
+std::vector<cl::Event> read_event(NUM_SLRS);
+
+for(int i = 0; i < NUM_SLRS; i++){
+    OCL_CHECK(err, err = q.enqueueMigrateMemObjects({d_results[i]}, CL_MIGRATE_MEM_OBJECT_HOST, &rf_event,
+                                                    &read_event[i]));
+}
+
+OCL_CHECK(err, err = cl::Event::waitForEvents(read_event));
+STOP_TIMER("csr kernel")
+
+  wrong_num = 0;
+    for (size_t i = 0; i < row; ++i)
     {
-        if (h_results[i] != y_test[i])
+        size_t results_array = i/(row/NUM_SLRS);
+        if(results_array >= NUM_SLRS) results_array = NUM_SLRS - 1;
+        size_t offset = results_array * (row/NUM_SLRS);
+        if (h_results[results_array][i - offset] != y_test[i])
         {
             wrong_num++;
         }
     }
-    cout << "csr result is wrong with this many: " << wrong_num << endl;
-    cout << "accuracy rate: " << (float)(row - wrong_num) / (float)row << endl;
+  std::cout << "csr result is wrong with this many: " << wrong_num << std::endl;
+  std::cout << "accuracy rate: " << (float)(row-wrong_num)/(float)row << std::endl;
 
-    // destroy csr related data on FPGA
-    cudaFree(d_node_list_idx);
-    cudaFree(d_edge_list_idx);
-    cudaFree(d_node_is_leaf_idx);
-    cudaFree(d_node_features_idx);
-    cudaFree(d_node_values_idx);
-    cudaFree(d_node_list_total);
-    cudaFree(d_edge_list_total);
-    cudaFree(d_node_is_leaf_total);
-    cudaFree(d_node_features_total);
-    cudaFree(d_node_values_total);
 #endif
 
 #ifdef FPGA_HIER
@@ -323,8 +560,8 @@ int main()
     // Mod nodes layout
     // We divide nodes array into two arrays to save memory
     unsigned num_nodes = nodes.size() / 3;
-    vector<unsigned short, aligned_allocator<unsigned short> > nodes_is_leaf_feature_id(num_nodes);
-    vector<float, aligned_allocator<float> > nodes_value(num_nodes);
+    std::vector<unsigned short, aligned_allocator<unsigned short> > nodes_is_leaf_feature_id(num_nodes);
+    std::vector<float, aligned_allocator<float> > nodes_value(num_nodes);
     for (unsigned i = 0; i < num_nodes; ++i)
     {
         nodes_is_leaf_feature_id[i] = (unsigned short)nodes[i * 3] << 1;
@@ -336,92 +573,298 @@ int main()
         }
     }
 
-    cout << "Allocating hier format on FPGA" << endl;
-    //vector<unsigned, aligned_allocator<unsigned> > d_prefix_sum_subtree_nums(DATA_SIZE, 10);
-    vector<int, aligned_allocator<int> > source_b(DATA_SIZE, 32);
-    vector<int, aligned_allocator<int> > source_results(DATA_SIZE);
-    unsigned *d_prefix_sum_subtree_nums;
+    std::cout << "Allocating hier format on FPGA" << std::endl;
     // Mod nodes layout
-    float *d_nodes_value;
-    unsigned short *d_nodes_is_leaf_feature_id;
 
-    unsigned *d_idx_to_subtree;
-    unsigned *d_leaf_idx_boundry;
-    unsigned *d_g_subtree_nodes_offset;
-    unsigned *d_g_subtree_idx_to_subtree_offset;
+    cl_mem_ext_ptr_t prefix_sum_subtree_nums_alloc[NUM_SLRS];  // Declaring extensions for multiple SLR buffers
+    std::vector<cl::Buffer> d_prefix_sum_subtree_nums;
 
-    OCL_CHECK(err, cl::Buffer d_prefix_sum_subtree_nums(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * prefix_sum_subtree_nums.size(), prefix_sum_subtree_nums.data(), &err));
+    for(int i = 0; i < NUM_SLRS; i++){
+        prefix_sum_subtree_nums_alloc[i].flags = i | XCL_MEM_TOPOLOGY; // DDR[i]
+        prefix_sum_subtree_nums_alloc[i].param = 0;
+        prefix_sum_subtree_nums_alloc[i].obj   = prefix_sum_subtree_nums.data();
+        OCL_CHECK(err, cl::Buffer d_prefix_sum_subtree_nums_temp(context, CL_MEM_USE_HOST_PTR | CL_MEM_EXT_PTR_XILINX | CL_MEM_READ_ONLY, sizeof(unsigned) * prefix_sum_subtree_nums.size(), &prefix_sum_subtree_nums_alloc[i], &err));
+        d_prefix_sum_subtree_nums.push_back(d_prefix_sum_subtree_nums_temp);
+    }
+    // OCL_CHECK(err, cl::Buffer d_prefix_sum_subtree_nums(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * prefix_sum_subtree_nums.size(), prefix_sum_subtree_nums.data(), &err));
     // Mod nodes layout
-    OCL_CHECK(err, cl::Buffer d_nodes_value(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(float) * num_nodes.size(), nodes_value.data(), &err));
-    OCL_CHECK(err, cl::Buffer d_nodes_is_leaf_feature_id(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned short) * num_nodes, nodes_is_leaf_feature_id.data(), &err));
+    cl_mem_ext_ptr_t nodes_value_alloc[NUM_SLRS];  // Declaring extensions for multiple SLR buffers
+    std::vector<cl::Buffer> d_nodes_value;
 
-    OCL_CHECK(err, cl::Buffer d_idx_to_subtree(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * idx_to_subtree.size(), idx_to_subtree.data(), &err));
-    OCL_CHECK(err, cl::Buffer d_leaf_idx_boundry(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * leaf_idx_boundry.size(), leaf_idx_boundry.data(), &err));
-    OCL_CHECK(err, cl::Buffer d_g_subtree_nodes_offset(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * g_subtree_nodes_offset.size(), g_subtree_nodes_offset.data(), &err));
-    OCL_CHECK(err, cl::Buffer d_g_subtree_idx_to_subtree_offset(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * g_subtree_idx_to_subtree_offset.size(), g_subtree_idx_to_subtree_offset.data(), &err));
+    for(int i = 0; i < NUM_SLRS; i++){
+        nodes_value_alloc[i].flags = i | XCL_MEM_TOPOLOGY; // DDR[i]
+        nodes_value_alloc[i].param = 0;
+        nodes_value_alloc[i].obj   = nodes_value.data();
+        OCL_CHECK(err, cl::Buffer d_nodes_value_temp(context, CL_MEM_USE_HOST_PTR | CL_MEM_EXT_PTR_XILINX | CL_MEM_READ_ONLY, sizeof(float) * nodes_value.size(), &nodes_value_alloc[i], &err));
+        d_nodes_value.push_back(d_nodes_value_temp);
+    }
+    // OCL_CHECK(err, cl::Buffer d_nodes_value(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(float) * nodes_value.size(), nodes_value.data(), &err));
+    cl_mem_ext_ptr_t nodes_is_leaf_feature_id_alloc[NUM_SLRS];  // Declaring extensions for multiple SLR buffers
+    std::vector<cl::Buffer> d_nodes_is_leaf_feature_id;
 
-    int narg = 0;
-    OCL_CHECK(err, err = rf_kernel.setArg(narg++, &num_of_trees));
-    OCL_CHECK(err, err = rf_kernel.setArg(narg++, d_prefix_sum_subtree_nums));
-    OCL_CHECK(err, err = rf_kernel.setArg(narg++, d_nodes_value));
-    OCL_CHECK(err, err = rf_kernel.setArg(narg++, d_nodes_is_leaf_feature_id));
-    OCL_CHECK(err, err = rf_kernel.setArg(narg++, d_idx_to_subtree));
-    OCL_CHECK(err, err = rf_kernel.setArg(narg++, d_leaf_idx_boundry));
-    OCL_CHECK(err, err = rf_kernel.setArg(narg++, d_g_subtree_nodes_offset));
-    OCL_CHECK(err, err = rf_kernel.setArg(narg++, d_g_subtree_idx_to_subtree_offset));
-    OCL_CHECK(err, err = rf_kernel.setArg(narg++, &num_of_queries));
-    OCL_CHECK(err, err = rf_kernel.setArg(narg++, &num_of_features));
-    OCL_CHECK(err, err = rf_kernel.setArg(narg++, d_queries));
-    OCL_CHECK(err, err = rf_kernel.setArg(narg++, d_results));
+    for(int i = 0; i < NUM_SLRS; i++){
+        nodes_is_leaf_feature_id_alloc[i].flags = i | XCL_MEM_TOPOLOGY; // DDR[i]
+        nodes_is_leaf_feature_id_alloc[i].param = 0;
+        nodes_is_leaf_feature_id_alloc[i].obj   = nodes_is_leaf_feature_id.data();
+        OCL_CHECK(err, cl::Buffer d_nodes_is_leaf_feature_id_temp(context, CL_MEM_USE_HOST_PTR | CL_MEM_EXT_PTR_XILINX | CL_MEM_READ_ONLY, sizeof(unsigned short) * nodes_is_leaf_feature_id.size(), &nodes_is_leaf_feature_id_alloc[i], &err));
+        d_nodes_is_leaf_feature_id.push_back(d_nodes_is_leaf_feature_id_temp);
+    }
+    // OCL_CHECK(err, cl::Buffer d_nodes_is_leaf_feature_id(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned short) * nodes_is_leaf_feature_id.size(), nodes_is_leaf_feature_id.data(), &err));
 
-    cout << "Copying hier format to FPGA" << endl;
-    std::vector<cl::Event> write_event(1);
-    OCL_CHECK(err, err = q.enqueueMigrateMemObjects({d_prefix_sum_subtree_nums,
-                                                     d_nodes_value,
-                                                     d_nodes_is_leaf_feature_id,
-                                                     d_idx_to_subtree,
-                                                     d_leaf_idx_boundry,
-                                                     d_g_subtree_nodes_offset,
-                                                     d_g_subtree_idx_to_subtree_offset,
-                                                     d_queries,
-                                                     d_results}, 0 /* 0 means from host*/,
-                                                     nullptr, &write_event[0]));
+    cl_mem_ext_ptr_t idx_to_subtree_alloc[NUM_SLRS];  // Declaring extensions for multiple SLR buffers
+    std::vector<cl::Buffer> d_idx_to_subtree;
 
-    cout << "Start executing hier format on FPGA" << endl;
+    for(int i = 0; i < NUM_SLRS; i++){
+        idx_to_subtree_alloc[i].flags = i | XCL_MEM_TOPOLOGY; // DDR[i]
+        idx_to_subtree_alloc[i].param = 0;
+        idx_to_subtree_alloc[i].obj   = idx_to_subtree.data();
+        OCL_CHECK(err, cl::Buffer d_idx_to_subtree_temp(context, CL_MEM_USE_HOST_PTR | CL_MEM_EXT_PTR_XILINX | CL_MEM_READ_ONLY, sizeof(unsigned) * idx_to_subtree.size(), &idx_to_subtree_alloc[i], &err));
+        d_idx_to_subtree.push_back(d_idx_to_subtree_temp);
+    }
+    // OCL_CHECK(err, cl::Buffer d_idx_to_subtree(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * idx_to_subtree.size(), idx_to_subtree.data(), &err));
+    cl_mem_ext_ptr_t leaf_idx_boundry_alloc[NUM_SLRS];  // Declaring extensions for multiple SLR buffers
+    std::vector<cl::Buffer> d_leaf_idx_boundry;
+
+    for(int i = 0; i < NUM_SLRS; i++){
+        leaf_idx_boundry_alloc[i].flags = i | XCL_MEM_TOPOLOGY; // DDR[i]
+        leaf_idx_boundry_alloc[i].param = 0;
+        leaf_idx_boundry_alloc[i].obj   = leaf_idx_boundry.data();
+        OCL_CHECK(err, cl::Buffer d_leaf_idx_boundry_temp(context, CL_MEM_USE_HOST_PTR | CL_MEM_EXT_PTR_XILINX | CL_MEM_READ_ONLY, sizeof(unsigned) * leaf_idx_boundry.size(), &leaf_idx_boundry_alloc[i], &err));
+        d_leaf_idx_boundry.push_back(d_leaf_idx_boundry_temp);
+    }
+    // OCL_CHECK(err, cl::Buffer d_leaf_idx_boundry(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * leaf_idx_boundry.size(), leaf_idx_boundry.data(), &err));
+    cl_mem_ext_ptr_t g_subtree_nodes_offset_alloc[NUM_SLRS];  // Declaring extensions for multiple SLR buffers
+    std::vector<cl::Buffer> d_g_subtree_nodes_offset;
+
+    for(int i = 0; i < NUM_SLRS; i++){
+        g_subtree_nodes_offset_alloc[i].flags = i | XCL_MEM_TOPOLOGY; // DDR[i]
+        g_subtree_nodes_offset_alloc[i].param = 0;
+        g_subtree_nodes_offset_alloc[i].obj   = g_subtree_nodes_offset.data();
+        OCL_CHECK(err, cl::Buffer d_g_subtree_nodes_offset_temp(context, CL_MEM_USE_HOST_PTR | CL_MEM_EXT_PTR_XILINX | CL_MEM_READ_ONLY, sizeof(unsigned) * g_subtree_nodes_offset.size(), &g_subtree_nodes_offset_alloc[i], &err));
+        d_g_subtree_nodes_offset.push_back(d_g_subtree_nodes_offset_temp);
+    }
+    // OCL_CHECK(err, cl::Buffer d_g_subtree_nodes_offset(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * g_subtree_nodes_offset.size(), g_subtree_nodes_offset.data(), &err));
+    cl_mem_ext_ptr_t g_subtree_idx_to_subtree_offset_alloc[NUM_SLRS];  // Declaring extensions for multiple SLR buffers
+    std::vector<cl::Buffer> d_g_subtree_idx_to_subtree_offset;
+
+    for(int i = 0; i < NUM_SLRS; i++){
+        g_subtree_idx_to_subtree_offset_alloc[i].flags = i | XCL_MEM_TOPOLOGY; // DDR[i]
+        g_subtree_idx_to_subtree_offset_alloc[i].param = 0;
+        g_subtree_idx_to_subtree_offset_alloc[i].obj   = g_subtree_idx_to_subtree_offset.data();
+        OCL_CHECK(err, cl::Buffer d_g_subtree_idx_to_subtree_offset_temp(context, CL_MEM_USE_HOST_PTR | CL_MEM_EXT_PTR_XILINX | CL_MEM_READ_ONLY, sizeof(unsigned) * g_subtree_idx_to_subtree_offset.size(), &g_subtree_idx_to_subtree_offset_alloc[i], &err));
+        d_g_subtree_idx_to_subtree_offset.push_back(d_g_subtree_idx_to_subtree_offset_temp);
+    }
+    // OCL_CHECK(err, cl::Buffer d_g_subtree_idx_to_subtree_offset(context, CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY, sizeof(unsigned) * g_subtree_idx_to_subtree_offset.size(), g_subtree_idx_to_subtree_offset.data(), &err));
+
+    #ifdef BATCH
+    // cl_mem_ext_ptr_t query_curr_subtree_alloc[NUM_SLRS];  // Declaring extensions for multiple SLR buffers
+    // std::vector<cl::Buffer> d_query_curr_subtree;
+
+    // for(int i = 0; i < NUM_SLRS; i++){
+    //     query_curr_subtree_alloc[i].flags = i | XCL_MEM_TOPOLOGY; // DDR[i]
+    //     query_curr_subtree_alloc[i].param = 0;
+    //     query_curr_subtree_alloc[i].obj   = nullptr;
+    //     OCL_CHECK(err, cl::Buffer d_query_curr_subtree_temp(context, CL_MEM_READ_WRITE | CL_MEM_EXT_PTR_XILINX, sizeof(unsigned) * row, &query_curr_subtree_alloc[i], &err));
+    //     d_query_curr_subtree.push_back(d_query_curr_subtree_temp);
+    // }
+    // // OCL_CHECK(err, cl::Buffer d_query_curr_subtree(context, CL_MEM_READ_WRITE, sizeof(unsigned) * row, nullptr, &err));
+    // cl_mem_ext_ptr_t query_data_alloc[NUM_SLRS];  // Declaring extensions for multiple SLR buffers
+    // std::vector<cl::Buffer> d_query_data;
+
+    // for(int i = 0; i < NUM_SLRS; i++){
+    //     query_data_alloc[i].flags = i | XCL_MEM_TOPOLOGY; // DDR[i]
+    //     query_data_alloc[i].param = 0;
+    //     query_data_alloc[i].obj   = nullptr;
+    //     OCL_CHECK(err, cl::Buffer d_query_data_temp(context, CL_MEM_READ_WRITE | CL_MEM_EXT_PTR_XILINX, sizeof(unsigned) * row, &query_data_alloc[i], &err));
+    //     d_query_data.push_back(d_query_data_temp);
+    // }
+    // OCL_CHECK(err, cl::Buffer d_query_data(context, CL_MEM_READ_WRITE, sizeof(unsigned) * row, nullptr, &err));
+
+    cl_mem_ext_ptr_t query_info_alloc[NUM_SLRS];  // Declaring extensions for multiple SLR buffers
+    std::vector<cl::Buffer> d_query_info;
+
+    for(int i = 0; i < NUM_SLRS; i++){
+        unsigned num_queries;
+        if(i < NUM_SLRS-1) num_queries = row/NUM_SLRS;
+        else num_queries = (row / NUM_SLRS) + (row % NUM_SLRS);
+        query_info_alloc[i].flags = i | XCL_MEM_TOPOLOGY; // DDR[i]
+        query_info_alloc[i].param = 0;
+        query_info_alloc[i].obj   = nullptr;
+        OCL_CHECK(err, cl::Buffer d_query_info_temp(context, CL_MEM_READ_WRITE | CL_MEM_EXT_PTR_XILINX, sizeof(query_t) * num_queries * num_of_trees, &query_info_alloc[i], &err));
+        d_query_info.push_back(d_query_info_temp);
+    }
+    #endif
+
+    std::vector<cl::Event> write_event(NUM_SLRS);
+
+    for(int i = 0; i < NUM_SLRS; i++){
+        unsigned num_queries;
+        if(i < NUM_SLRS-1) num_queries = row/NUM_SLRS;
+        else num_queries = (row / NUM_SLRS) + (row % NUM_SLRS);
+        unsigned start = 0;
+        int narg = 0;
+        OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, num_of_trees));
+        OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_prefix_sum_subtree_nums[i]));
+        OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_nodes_value[i]));
+        OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_nodes_is_leaf_feature_id[i]));
+        OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_idx_to_subtree[i]));
+        OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_leaf_idx_boundry[i]));
+        OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_g_subtree_nodes_offset[i]));
+        OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_g_subtree_idx_to_subtree_offset[i]));
+        #ifdef BATCH
+        // OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_query_curr_subtree[i]));
+        // OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_query_data[i]));
+        OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_query_info[i]));
+        #endif
+        #if (NUM_CUS > 1)
+        OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, start));
+        #endif
+        OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, num_queries));
+        OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, col));
+        OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_queries[i]));
+        OCL_CHECK(err, err = rf_kernel[i*NUM_CUS].setArg(narg++, d_results[i]));
+
+        std::cout << "Copying hier format to FPGA SLR " << i << std::endl;
+        OCL_CHECK(err, err = q.enqueueMigrateMemObjects({d_prefix_sum_subtree_nums[i],
+                                                        d_nodes_value[i],
+                                                        d_nodes_is_leaf_feature_id[i],
+                                                        d_idx_to_subtree[i],
+                                                        d_leaf_idx_boundry[i],
+                                                        d_g_subtree_nodes_offset[i],
+                                                        d_g_subtree_idx_to_subtree_offset[i],
+                                                        d_queries[i],
+                                                        d_results[i]}, 0 /* 0 means from host*/,
+                                                        nullptr, &write_event[i]));
+    }
+
+    #if SPLIT
+    std::vector<cl::Event> rf_burst_event(NUM_SLRS);
+    #endif
+
+    std::vector<cl::Event> rf_event(NUM_SLRS*NUM_CUS);
+
+    #if SPLIT
+    for(int i = 0; i < NUM_SLRS; i++){
+        unsigned num_queries;
+        if(i < (NUM_SLRS-1)) num_queries = row/NUM_SLRS;
+        else num_queries = (row / NUM_SLRS) + (row % NUM_SLRS);
+        unsigned start = 0;
+        unsigned end = num_queries;
+        std::cout << i << " Burst CU start is " << start << ", end is " << end << std::endl;
+        int narg = 0;
+        OCL_CHECK(err, err = rf_kernel_burst[i].setArg(narg++, num_of_trees));
+        OCL_CHECK(err, err = rf_kernel_burst[i].setArg(narg++, d_prefix_sum_subtree_nums[i]));
+        OCL_CHECK(err, err = rf_kernel_burst[i].setArg(narg++, d_nodes_value[i]));
+        OCL_CHECK(err, err = rf_kernel_burst[i].setArg(narg++, d_nodes_is_leaf_feature_id[i]));
+        OCL_CHECK(err, err = rf_kernel_burst[i].setArg(narg++, d_idx_to_subtree[i]));
+        OCL_CHECK(err, err = rf_kernel_burst[i].setArg(narg++, d_leaf_idx_boundry[i]));
+        OCL_CHECK(err, err = rf_kernel_burst[i].setArg(narg++, d_g_subtree_nodes_offset[i]));
+        OCL_CHECK(err, err = rf_kernel_burst[i].setArg(narg++, d_g_subtree_idx_to_subtree_offset[i]));
+        #ifdef BATCH
+        OCL_CHECK(err, err = rf_kernel_burst[i].setArg(narg++, d_query_info[i]));
+        #endif
+        OCL_CHECK(err, err = rf_kernel_burst[i].setArg(narg++, start));
+        OCL_CHECK(err, err = rf_kernel_burst[i].setArg(narg++, end));
+        OCL_CHECK(err, err = rf_kernel_burst[i].setArg(narg++, col));
+        OCL_CHECK(err, err = rf_kernel_burst[i].setArg(narg++, d_queries[i]));
+        OCL_CHECK(err, err = rf_kernel_burst[i].setArg(narg++, d_results[i]));
+    }
+    #endif
+    
+    for(int i = 0; i < NUM_SLRS * NUM_CUS; i++){
+        unsigned num_queries;
+        if(i < (NUM_SLRS-1)*NUM_CUS) num_queries = row/NUM_SLRS;
+        else num_queries = (row / NUM_SLRS) + (row % NUM_SLRS);
+        unsigned num_queries_per_cu = num_queries / NUM_CUS;
+        unsigned start = num_queries_per_cu * (i % NUM_CUS);
+        unsigned end;
+        if(i % NUM_CUS == NUM_CUS-1){
+            end = num_queries;
+        }
+        else{
+            end = num_queries_per_cu * ((i % NUM_CUS) + 1);
+        }
+        std::cout << i << " CU start is " << start << ", end is " << end << std::endl;
+        int narg = 0;
+        OCL_CHECK(err, err = rf_kernel[i].setArg(narg++, num_of_trees));
+        OCL_CHECK(err, err = rf_kernel[i].setArg(narg++, d_prefix_sum_subtree_nums[i / NUM_CUS]));
+        OCL_CHECK(err, err = rf_kernel[i].setArg(narg++, d_nodes_value[i / NUM_CUS]));
+        OCL_CHECK(err, err = rf_kernel[i].setArg(narg++, d_nodes_is_leaf_feature_id[i / NUM_CUS]));
+        OCL_CHECK(err, err = rf_kernel[i].setArg(narg++, d_idx_to_subtree[i / NUM_CUS]));
+        OCL_CHECK(err, err = rf_kernel[i].setArg(narg++, d_leaf_idx_boundry[i / NUM_CUS]));
+        OCL_CHECK(err, err = rf_kernel[i].setArg(narg++, d_g_subtree_nodes_offset[i / NUM_CUS]));
+        OCL_CHECK(err, err = rf_kernel[i].setArg(narg++, d_g_subtree_idx_to_subtree_offset[i / NUM_CUS]));
+        #ifdef BATCH
+        // OCL_CHECK(err, err = rf_kernel[i].setArg(narg++, d_query_curr_subtree[i / NUM_CUS]));
+        // OCL_CHECK(err, err = rf_kernel[i].setArg(narg++, d_query_data[i / NUM_CUS]));
+        OCL_CHECK(err, err = rf_kernel[i].setArg(narg++, d_query_info[i / NUM_CUS]));
+        #endif
+        #if NUM_CUS > 1
+        OCL_CHECK(err, err = rf_kernel[i].setArg(narg++, start));
+        #endif
+        OCL_CHECK(err, err = rf_kernel[i].setArg(narg++, end));
+        OCL_CHECK(err, err = rf_kernel[i].setArg(narg++, col));
+        OCL_CHECK(err, err = rf_kernel[i].setArg(narg++, d_queries[i / NUM_CUS]));
+        OCL_CHECK(err, err = rf_kernel[i].setArg(narg++, d_results[i / NUM_CUS]));
+    }
     START_TIMER
-    vector<cl::Event> rf_event(1);
-    OCL_CHECK(err, err = q.enqueueNDRangeKernel(rf_kernel, 0, 1, 1, &write_event, &rf_event[0]));
+    #if SPLIT
+    for(int i = 0; i < NUM_SLRS; i++){
+        std::cout << "Start executing hier format burst on FPGA SLR" << i << std::endl;
+        OCL_CHECK(err, err = q.enqueueTask(rf_kernel_burst[i], &write_event, &rf_burst_event[i]));
+    }
+    for(int i = 0; i < NUM_SLRS * NUM_CUS; i++){
+        std::cout << "Start executing hier format on FPGA SLR" << i << std::endl;
+        OCL_CHECK(err, err = q.enqueueTask(rf_kernel[i], &rf_burst_event, &rf_event[i]));
+    }
+    #else
+    for(int i = 0; i < NUM_SLRS * NUM_CUS; i++){
+        std::cout << "Start executing hier format on FPGA SLR" << i << std::endl;
+        OCL_CHECK(err, err = q.enqueueTask(rf_kernel[i], &write_event, &rf_event[i]));
+    }
+    #endif
 
-    int narg = 0;
-    OCL_CHECK(err, err = generate_results_kernel.setArg(narg++, &row));
-    OCL_CHECK(err, err = generate_results_kernel.setArg(narg++, &num_of_trees));
-    OCL_CHECK(err, err = generate_results_kernel.setArg(narg++, d_results));
-    vector<cl::Event> gen_res_event(1);
-    OCL_CHECK(err, err = q.enqueueNDRangeKernel(generate_results_kernel, 0, 1, 1, &rf_event, &gen_res_event[0]));
-    generate_results<<<80, 256>>>(row, num_of_trees, d_results);
+    
+    // START_TIMER
+
+    // narg = 0;
+    // OCL_CHECK(err, err = generate_results_kernel.setArg(narg++, row));
+    // OCL_CHECK(err, err = generate_results_kernel.setArg(narg++, num_of_trees));
+    // OCL_CHECK(err, err = generate_results_kernel.setArg(narg++, d_results));
+    // std::vector<cl::Event> gen_res_event(1);
+    // OCL_CHECK(err, err = q.enqueueNDRangeKernel(generate_results_kernel, 0, 1, 1, &rf_event, &gen_res_event[0]));    
+
+    std::vector<cl::Event> read_event(NUM_SLRS);
+
+    for(int i = 0; i < NUM_SLRS; i++){
+        OCL_CHECK(err, err = q.enqueueMigrateMemObjects({d_results[i]}, CL_MIGRATE_MEM_OBJECT_HOST, &rf_event,
+                                                        &read_event[i]));
+    }
+    
+    OCL_CHECK(err, err = cl::Event::waitForEvents(read_event));
     STOP_TIMER("hier kernel")
 
-    vector<cl::Event> read_event(1);
-    OCL_CHECK(err, err = q.enqueueMigrateMemObjects({d_results}, CL_MIGRATE_MEM_OBJECT_HOST, &gen_res_event,
-                                                        &read_event[0]));
-
     wrong_num = 0;
-    for (auto i = 0; i < row; ++i)
+    for (size_t i = 0; i < row; ++i)
     {
-        if (h_results[i] != y_test[i])
+        size_t results_array = i/(row/NUM_SLRS);
+        if(results_array >= NUM_SLRS) results_array = NUM_SLRS - 1;
+        size_t offset = results_array * (row/NUM_SLRS);
+        // std::cout << "Accessing " << results_array << " " << i - offset << std::endl;
+        if (h_results[results_array][i - offset] != y_test[i])
         {
             wrong_num++;
         }
     }
-    cout << "hier result is wrong with this many: " << wrong_num << endl;
-    cout << "accuracy rate: " << (float)(row - wrong_num) / (float)row << endl;
+    std::cout << "hier result is wrong with this many: " << wrong_num << std::endl;
+    std::cout << "accuracy rate: " << (float)(row - wrong_num) / (float)row << std::endl;
 #endif
     // main returns
     return 0;
 }
 
 // predict the result over a decision_tree
-float predict_tree_gpu_layout(int num_of_trees, const unsigned *prefix_sum_subtree_nums, const float *nodes, const unsigned *idx_to_subtree, const unsigned *leaf_idx_boundry, const unsigned *g_subtree_nodes_offset, const unsigned *g_subtree_idx_to_subtree_offset, unsigned tree_num, float *row)
+float predict_tree_fpga_layout(int num_of_trees, const unsigned *prefix_sum_subtree_nums, const float *nodes, const unsigned *idx_to_subtree, const unsigned *leaf_idx_boundry, const unsigned *g_subtree_nodes_offset, const unsigned *g_subtree_idx_to_subtree_offset, unsigned tree_num, float *row)
 {
 
     unsigned tree_off_set = prefix_sum_subtree_nums[tree_num];
@@ -484,14 +927,14 @@ float predict_tree_gpu_layout(int num_of_trees, const unsigned *prefix_sum_subtr
 }
 
 template <typename T>
-unsigned read_arr(ifstream &infile, vector<T> &output, string var_name)
+unsigned read_arr(std::ifstream &infile, std::vector<T, aligned_allocator<T>> &output, std::string var_name)
 {
-    string str;
+    std::string str;
     char c;
     infile >> str;
     if (str != var_name)
     {
-        cout << str << "error reading " << var_name << endl;
+        std::cout << str << "error reading " << var_name << std::endl;
     }
     unsigned len;
     infile >> len >> c;
@@ -500,19 +943,19 @@ unsigned read_arr(ifstream &infile, vector<T> &output, string var_name)
     {
         infile >> output[i] >> c;
     }
-    //  cout << "Read " << str << " with " << len << " elements\n";
+    //  std::cout << "Read " << str << " with " << len << " elements\n";
     return len;
 }
 
 template <typename T>
-void read_2darr(ifstream &infile, vector<T> &output, string var_name, unsigned &row, unsigned &col)
+void read_2darr(std::ifstream &infile, std::vector<T, aligned_allocator<T>> &output, std::string var_name, unsigned &row, unsigned &col)
 {
-    string str;
+    std::string str;
     char c;
     infile >> str;
     if (str != var_name)
     {
-        cout << str << "error reading " << var_name << endl;
+        std::cout << str << "error reading " << var_name << std::endl;
     }
     unsigned nrow, ncol;
     infile >> nrow >> c >> ncol >> c;
@@ -523,7 +966,7 @@ void read_2darr(ifstream &infile, vector<T> &output, string var_name, unsigned &
     {
         infile >> output[i] >> c;
     }
-    //  cout << "Read " << str << " with " << nrow << " rows" << " and " << ncol << " cols.\n";
+    //  std::cout << "Read " << str << " with " << nrow << " rows" << " and " << ncol << " cols.\n";
 }
 
 //    node_list = tree[1]
