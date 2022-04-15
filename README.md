@@ -32,17 +32,17 @@ GPU:
 - Run rf_fixed.py to generate forests with fixed maximum subtree depth.
   - NE_RANGE, TD_RANGE, SD_RANGE configure parameters for number of trees, maximum tree depths, and maximum subtree depths, respectively
   - The forest is stored in a file called "clustered_fixed_DATASET_tdX_neY_sdZ_hier.txt" (hierarchical format) or "clustered_fixed_DATASET_tdX_neY_csr.txt" (CSR format)
-    a. DATASET = name of the dataset
-    b. X = maximum tree depth
-    c. Y = number of trees
-    d. Z = maximum subtree depth
+    - DATASET = name of the dataset
+    - X = maximum tree depth
+    - Y = number of trees
+    - Z = maximum subtree depth
 - Run rf_bigst.py to generate forests with a specified root subtree maximum depth, configured with the INIT_RANGE variable
   - The forest is stored in a file called "clustered_var_DATASET_tdX_neY_sdZ_istdW_hier.txt" (hierarchical format) or "clustered_fixed_DATASET_tdX_neY_csr.txt" (CSR format)
-    a. DATASET = name of the dataset
-    b. X = maximum tree depth
-    c. Y = number of trees
-    d. Z = maximum subtree depth
-    e. W = root subtree maximum depth
+    - DATASET = name of the dataset
+    - X = maximum tree depth
+    - Y = number of trees
+    - Z = maximum subtree depth
+    - W = root subtree maximum depth
 
 
 ### Running the GPU traversal
