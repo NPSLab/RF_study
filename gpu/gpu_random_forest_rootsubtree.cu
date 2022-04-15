@@ -12,8 +12,8 @@
 
 #define RATIO_ST 0.5
 #define SM_BYTES 49152
-#define MAX_ST_DEPTH 6
-#define MAX_NODES_ST 63
+#define MAX_ST_DEPTH 9
+#define MAX_NODES_ST 511
 // #define ET5
 
 /* different GPU kernel versions 

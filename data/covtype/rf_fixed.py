@@ -184,7 +184,7 @@ del dataset
 
 gc.collect()
 #configure the dataset
-MODEL_PATH = r'/home/mkshah5/susy_trained//'
+
 DATASET_NAME = "COVTYPE"
 def write_array(arr_name,str_name,f):
     f.write("{}\n".format(str_name))
