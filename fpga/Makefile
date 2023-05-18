@@ -185,7 +185,11 @@ $(TEMP_DIR)/hier_kernel_burst.xo: $(KERNEL)_copy.cpp
 	$(VPP) $(VPP_FLAGS) -c -k $(KERNEL_NAME_BURST) --temp_dir $(TEMP_DIR)  -I'$(<D)' -o'$@' '$<'
 $(TEMP_DIR)/hier_kernel.xo: $(KERNEL).cpp
 	mkdir -p $(TEMP_DIR)
+ifeq ($(SPLIT), 1)
 	$(VPP) $(VPP_FLAGS) -c -k $(KERNEL_NAME) --temp_dir $(TEMP_DIR)  -I'$(<D)' -o'$@' '$<'
+else
+	$(VPP) $(VPP_FLAGS) -c -k $(KERNEL_NAME) --temp_dir $(TEMP_DIR) --config $(CONFIG) -I'$(<D)' -o'$@' '$<'
+endif
 $(BUILD_DIR)/$(NAME).xclbin: $(BINARY_CONTAINER_KERNEL_OBJS)
 	mkdir -p $(BUILD_DIR)
 ifeq ($(HOST_ARCH), x86)
@@ -204,7 +208,7 @@ $(EMCONFIG_DIR)/emconfig.json:
 	emconfigutil --platform $(PLATFORM) --od $(EMCONFIG_DIR)
 
 ############################## Setting Essential Checks and Running Rules ##############################
-run: all
+run:
 ifeq ($(TARGET),$(filter $(TARGET),sw_emu hw_emu))
 ifeq ($(HOST_ARCH), x86)
 	$(CP) $(EMCONFIG_DIR)/emconfig.json .
