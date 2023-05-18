@@ -20,7 +20,7 @@
 
 help::
 	$(ECHO) "Makefile Usage:"
-	$(ECHO) "  make all TARGET=<sw_emu/hw_emu/hw> PLATFORM=<FPGA platform> HOST_ARCH=<aarch32/aarch64/x86> EDGE_COMMON_SW=<rootfs and kernel image path> KERNEL=<name_of_kernel> SUBDEPTH=<max tree subdepth>"
+	$(ECHO) "  make all TARGET=<sw_emu/hw_emu/hw> PLATFORM=<FPGA platform> HOST_ARCH=<aarch32/aarch64/x86> EDGE_COMMON_SW=<rootfs and kernel image path> KERNEL=<name_of_kernel> SUBDEPTH=<max tree subdepth> TREEFILE=<forest_file> INPUTFILE=<input_file> NUM_SLRS=<num_slrs (1, 4)> BATCH=<toggle_batch_loading> NUM_CUS=<num_compute_units> MODE=<CSR or Hier: FPGA_CSR, FPGA_HIER> SPLIT=<Split hier kernel>"
 	$(ECHO) "      Command to generate the design for specified Target and Shell."
 	$(ECHO) ""
 	$(ECHO) "  make clean "
@@ -35,10 +35,10 @@ help::
 	$(ECHO) "  make sd_card TARGET=<sw_emu/hw_emu/hw> PLATFORM=<FPGA platform> HOST_ARCH=<aarch32/aarch64/x86> EDGE_COMMON_SW=<rootfs and kernel image path>"
 	$(ECHO) "      Command to prepare sd_card files."
 	$(ECHO) ""
-	$(ECHO) "  make run TARGET=<sw_emu/hw_emu/hw> PLATFORM=<FPGA platform> HOST_ARCH=<aarch32/aarch64/x86> EDGE_COMMON_SW=<rootfs and kernel image path>"
+	$(ECHO) "  make run TARGET=<sw_emu/hw_emu/hw> PLATFORM=<FPGA platform> HOST_ARCH=<aarch32/aarch64/x86> EDGE_COMMON_SW=<rootfs and kernel image path> KERNEL=<name_of_kernel> SUBDEPTH=<max tree subdepth> TREEFILE=<forest_file> INPUTFILE=<input_file> NUM_SLRS=<num_slrs (1, 4)> BATCH=<toggle_batch_loading> NUM_CUS=<num_compute_units> MODE=<CSR or Hier: FPGA_CSR, FPGA_HIER> SPLIT=<Split hier kernel>"
 	$(ECHO) "      Command to run application in emulation or hw."
 	$(ECHO) ""
-	$(ECHO) "  make build TARGET=<sw_emu/hw_emu/hw> PLATFORM=<FPGA platform> HOST_ARCH=<aarch32/aarch64/x86> EDGE_COMMON_SW=<rootfs and kernel image path>"
+	$(ECHO) "  make build TARGET=<sw_emu/hw_emu/hw> PLATFORM=<FPGA platform> HOST_ARCH=<aarch32/aarch64/x86> EDGE_COMMON_SW=<rootfs and kernel image path> KERNEL=<name_of_kernel> SUBDEPTH=<max tree subdepth> TREEFILE=<forest_file> INPUTFILE=<input_file> NUM_SLRS=<num_slrs (1, 4)> BATCH=<toggle_batch_loading> NUM_CUS=<num_compute_units> MODE=<CSR or Hier: FPGA_CSR, FPGA_HIER> SPLIT=<Split hier kernel>"
 	$(ECHO) "      Command to build xclbin application."
 	$(ECHO) ""
 	$(ECHO) "  make host HOST_ARCH=<aarch32/aarch64/x86> EDGE_COMMON_SW=<rootfs and kernel image path>"
