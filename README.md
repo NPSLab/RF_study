@@ -2,8 +2,6 @@
 
 A repository for accelerating random forest inference on GPU and FPGA.
 
-## GPU Code
-
 ### Dependencies
 Generating Forests:
   - Follow installation instructions at https://rapids.ai/start.html#get-rapids to prepare your environment for CUML
@@ -11,6 +9,8 @@ Generating Forests:
 
 GPU:
   - CUDA 11.6 was used
+FPGA:
+  - Vitis 2020.2 was used
 
 ### /gpu directory  - contains different GPU kernels
 - To generate all gpu random forest traverers, type "make all" inside gpu folder
@@ -58,4 +58,21 @@ GPU:
 3. tree_input.txt is the same as test_input.txt created from running Python forest generation scripts
 4. treefile inputs are generated from the same forest generation script as step 3. Rename one of the forest files to treefile_csr.txt for CSR or treefile_hier.txt for hierarchical traversal kernels
 
-## FPGA
+### Compiling and running the FPGA traversa1. 
+- Use run.sh to automate both the hardware and host compilation and execution of the random forest traversal.
+- An example can be seen in run_tests.sh - this example generates the results shown in Fig. 9
+
+_For manual use of the makefile, arguments are described below:_
+### fpga/Makefile Arguments
+- **TARGET**: Determine hardware, simulation, or emulation (hw, hw_emu, sw_emu)
+- **HOST_ARCH**: x86
+- **KERNEL**: Name of .cpp kernel file located in /fpga
+- **SUBDEPTH**: Max subdepth for on-chip memory storage in hybrid version. Scales by 2^SUBDEPTH. Set to 0 for CSR/independent version, >0 for hier version.
+- **CONFIG**: Name of the .cfg file used for hardware generation
+- **TREEFILE**: The forest file, either ending with \_csr.txt or \_hier.txt, depending on CSR or HIER version
+- **INPUTFILE**: Input file (same as step 3. of GPU traversal, same as test_input.txt from generation)
+- **BATCH**: Whether the kernel performs batching (0, 1)
+- **NUM_CUS**: Number of Compute Units (1 -> 12) _Make sure .cfg file matches this number_
+- **NUM_SLRS**: Number of Super Logic Regions (1, 4) _Make sure .cfg file matches this number_
+- **MODE**: Baseline CSR version (FPGA_CSR) or independent/hybrid versions (FPGA_HIER)
+- **KERNEL_NAME**: hier_kernel
