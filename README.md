@@ -1,6 +1,6 @@
-# README
+# Accelerating Random Forest Classification on GPU and FPGA
 
-A repository for accelerating random forest inference on GPU and FPGA.
+A repository for accelerating random forest inference on GPU and FPGA. ([Paper](https://doi-org/10.1145/3545008.3545067))
 
 ### Dependencies
 Generating Forests:
